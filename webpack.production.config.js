@@ -2,30 +2,32 @@
  * Production Webpack Configuration
  */
 
-let Dotenv = require('dotenv-webpack');
-let { resolve } = require('path');
+const Dotenv = require('dotenv-webpack');
+const { resolve } = require('path');
 
-let webpack = require('webpack');
-let HtmlWebpackPlugin = require('html-webpack-plugin');
-let ExtractTextPlugin = require('extract-text-webpack-plugin');
+const webpack = require('webpack');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
+const WebpackBundleSizeAnalyzerPlugin = require('webpack-bundle-size-analyzer').WebpackBundleSizeAnalyzerPlugin;
+const CompressionPlugin = require('compression-webpack-plugin');
 
 module.exports = {
-  
+
   devtool: false,
-  
+
   context: resolve(__dirname, 'src'),
-  
+
   entry: [
     './',
     './scss/app'
   ],
-  
+
   output: {
-    filename: 'app-[hash].js',
+    filename: 'app-[hash].js.gz',
     path: resolve(__dirname, 'build'),
     publicPath: '/',
   },
-  
+
   module: {
     rules: [
       {
@@ -33,6 +35,9 @@ module.exports = {
         loaders: ['babel-loader'],
         exclude: /node_modules/
       },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader'] },
       {
         test: /\.scss$/,
         exclude: /node_modules/,
@@ -52,7 +57,7 @@ module.exports = {
       { test: /\.svg(\?v=\d+\.\d+\.\d+)?$/, use: 'url-loader?limit=10000&mimetype=image/svg+xml' }
     ]
   },
-  
+
   resolve: {
     extensions: ['.js', '.jsx', '.scss'],
     alias: {
@@ -61,23 +66,31 @@ module.exports = {
       respond: resolve(__dirname, 'src/scss/utils/respond')
     }
   },
-  
+
   plugins: [
     new Dotenv({
       path: './.env.production',
       safe: true
     }),
+    new webpack.DefinePlugin({ // <-- key to reducing React's size
+      'process.env': {
+        NODE_ENV: JSON.stringify('production')
+      }
+    }),
     new webpack.optimize.ModuleConcatenationPlugin(),
     new HtmlWebpackPlugin({
-      template: `${__dirname}/src/index.html`,
+      template: `${__dirname}/src/index.ejs`,
       filename: 'index.html',
       inject: 'body',
+      favicon: '',
     }),
     new webpack.optimize.OccurrenceOrderPlugin(),
     new webpack.LoaderOptionsPlugin({
       minimize: true,
       debug: false,
     }),
+
+    // uglify / minify
     new webpack.optimize.UglifyJsPlugin({
       beautify: false,
       mangle: {
@@ -89,7 +102,19 @@ module.exports = {
       },
       comments: false,
     }),
-    new ExtractTextPlugin({ filename: 'app-[hash].css', disable: false, allChunks: true })
+    new ExtractTextPlugin({ filename: 'app-[hash].css', disable: false, allChunks: true }),
+
+    // GZIP compression
+    new CompressionPlugin({
+      asset: '[path].gz[query]',
+      algorithm: 'gzip',
+      test: /\.js$|\.css$|\.html$/,
+      threshold: 10240,
+      minRatio: 0.8
+    }),
+
+    // reporting
+    new WebpackBundleSizeAnalyzerPlugin('./plain-report.txt')
   ]
-  
-}
+
+};
