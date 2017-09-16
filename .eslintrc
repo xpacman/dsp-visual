@@ -1,24 +1,25 @@
 {
-  "parser": "babel-eslint",
-  "env": {
-    "browser": true,
-    "node": true
-  },
-  "ecmaFeatures": {
-    "jsx": true,
-    "es6": true,
-    "classes": true
-  },
-  "extends": "airbnb",
   "rules": {
-    "space-before-function-paren": 0,
-    "react/prefer-stateless-function": 0,
-    "import/no-extraneous-dependencies": 0,
-    "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx"] }],
-    "linebreak-style": 0,
-    "global-require": 0,
-    "eol-last": 0,
-    "comma-dangle": 0,
-    "spaced-comment": 0
+    "react/no-multi-comp": "off",
+    "react/no-find-dom-node": "off",
+    "no-restricted-syntax": "off",
+    "class-methods-use-this": "off",
+    "no-unused-vars": "off",
+    "no-trailing-spaces": "off",
+    "no-return-assign": "off",
+    "global-require": "off",
+    "react/forbid-prop-types": "off",
+    "react/no-array-index-key": "off",
+    "react/no-string-refs": "off",
+    "jsx-a11y/label-has-for": "off",
+    "jsx-a11y/img-has-alt": "off",
+    "no-console": "off",
+    "import/no-extraneous-dependencies": ["error", { "devDependencies": true }],
+    "no-else-return": "off",
+    "no-case-declarations": "off",
+    "no-param-reassign": "off",
+    "no-continue": "off",
+    "no-bitwise": "off",
+    "max-len": "off",
   }
 }

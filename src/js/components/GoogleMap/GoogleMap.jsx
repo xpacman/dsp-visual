@@ -1,8 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import GoogleMapReact from 'google-map-react';
+import BasicMarker from './BasicMarker';
 import config from '../../config';
 
-const AnyReactComponent = ({ text }) => <div>{text}</div>;
 
 class GoogleMap extends Component {
   static propTypes = {
@@ -16,14 +16,13 @@ class GoogleMap extends Component {
   };
 
   render() {
-    console.log('places', this.props.places);
     return (
       <GoogleMapReact
         apiKey={config.googleMapApiKey}
         defaultCenter={this.props.places[0]}
         defaultZoom={this.props.zoom}
       >
-        {this.props.places.map((place, index) => (<AnyReactComponent
+        {this.props.places.map((place, index) => (<BasicMarker
           key={index}
           lat={place.lat}
           lng={place.lng}
