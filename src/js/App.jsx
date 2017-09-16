@@ -5,7 +5,6 @@ import store from './store';
 
 import styles from '../scss/app.scss';
 
-import Primary from './partials/navigation/primary';
 import Home from './views/Home';
 import Search from './views/Search';
 import About from './views/About';
@@ -18,7 +17,6 @@ export default class App extends Component {
       <Provider store={store}>
         <Router>
           <div className={styles.root}>
-            <Primary />
             <Switch>
               <Route exact path="/" component={Home} />
               <Route path="/hladanie" component={Search} />

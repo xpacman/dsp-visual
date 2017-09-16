@@ -2,31 +2,31 @@
  * Development Webpack Configuration
  */
 
-let Dotenv = require('dotenv-webpack');
-let { resolve } = require('path');
+const Dotenv = require('dotenv-webpack');
+const { resolve } = require('path');
 
-let webpack = require('webpack');
-let DashboardPlugin = require('webpack-dashboard/plugin');
-let HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
+const DashboardPlugin = require('webpack-dashboard/plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
-  
+
   devtool: 'cheap-module-eval-source-map',
-  
+
   context: resolve(__dirname, 'src'),
-  
+
   entry: [
     'react-hot-loader/patch',
     `webpack-dev-server/client?http://${process.env.NODE_HOST || 'localhost'}:${process.env.NODE_PORT || 8111}`,
     './'
   ],
-  
+
   output: {
     filename: 'app-[hash].js',
     path: resolve(__dirname, 'build'),
     publicPath: '/',
   },
-  
+
   module: {
     rules: [
 
@@ -45,10 +45,10 @@ module.exports = {
       { test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/, use: 'url-loader?limit=10000&mimetype=application/font-woff' },
       { test: /\.[ot]tf(\?v=\d+.\d+.\d+)?$/, use: 'url-loader?limit=10000&mimetype=application/octet-stream' },
       { test: /\.svg(\?v=\d+\.\d+\.\d+)?$/, use: 'url-loader?limit=10000&mimetype=image/svg+xml' },
-	  { test: /\.css$/, use: [ 'style-loader', 'css-loader' ] },
+      { test: /\.css$/, use: ['style-loader', 'css-loader'] },
     ]
   },
-  
+
   resolve: {
     extensions: ['.js', '.jsx', '.scss'],
     alias: {
@@ -57,7 +57,7 @@ module.exports = {
       respond: resolve(__dirname, 'src/scss/utils/respond')
     }
   },
-  
+
   devServer: {
     host: process.env.NODE_HOST || 'localhost',
     port: process.env.NODE_PORT || 8111,
@@ -79,7 +79,7 @@ module.exports = {
       colors: true
     }
   },
-  
+
   plugins: [
     new Dotenv({
       path: './.env',
@@ -94,5 +94,5 @@ module.exports = {
     new webpack.HotModuleReplacementPlugin(),
     new DashboardPlugin()
   ]
-  
-}
+
+};
