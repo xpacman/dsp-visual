@@ -1,5 +1,7 @@
 import { AppContainer } from 'react-hot-loader';
 import { render } from 'react-dom';
+import 'bootstrap/dist/css/bootstrap.css';
+
 import React from 'react';
 import App from './js/App';
 

@@ -66,11 +66,15 @@
     "webpack-dev-server": "^2.7.1"
   },
   "dependencies": {
+    "bootstrap": "^4.0.0-alpha.6",
     "react": "^15.6.1",
+    "react-addons-css-transition-group": "^15.6.0",
+    "react-addons-transition-group": "^15.6.0",
     "react-dom": "^15.6.1",
     "react-hot-loader": "^3.0.0-beta.7",
     "react-redux": "^5.0.6",
     "react-router-dom": "^4.1.1",
+    "reactstrap": "^4.8.0",
     "redux": "^3.7.2"
   }
 }
