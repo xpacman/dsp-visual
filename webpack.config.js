@@ -29,6 +29,7 @@ module.exports = {
   
   module: {
     rules: [
+
       {
         test: /\.(js|jsx)$/,
         loaders: ['babel-loader'],
@@ -43,7 +44,8 @@ module.exports = {
       { test: /\.eot(\?v=\d+.\d+.\d+)?$/, use: 'file-loader' },
       { test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/, use: 'url-loader?limit=10000&mimetype=application/font-woff' },
       { test: /\.[ot]tf(\?v=\d+.\d+.\d+)?$/, use: 'url-loader?limit=10000&mimetype=application/octet-stream' },
-      { test: /\.svg(\?v=\d+\.\d+\.\d+)?$/, use: 'url-loader?limit=10000&mimetype=image/svg+xml' }
+      { test: /\.svg(\?v=\d+\.\d+\.\d+)?$/, use: 'url-loader?limit=10000&mimetype=image/svg+xml' },
+	  { test: /\.css$/, use: [ 'style-loader', 'css-loader' ] },
     ]
   },
   

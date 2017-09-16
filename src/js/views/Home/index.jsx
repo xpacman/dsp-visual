@@ -1,15 +1,22 @@
 import React, { Component } from 'react';
-import { Button, Container } from 'reactstrap';
-
-import Styles from '../../../scss/views/home.scss';
+import { Button, Container, Col, Row } from 'reactstrap';
+import GoogleMap from '../../components/GoogleMap/GoogleMap';
+import styles from '../../../scss/views/home.scss';
 
 export default class extends Component {
 
   render() {
     return (
-      <Container>
-        <Button>sads</Button>
-      </Container>
+      <div className={styles.container}>
+        <Row>
+          <Col xs={8}>
+            <GoogleMap />
+          </Col>
+          <Col xs={4}>
+            <Button>sads</Button>
+          </Col>
+        </Row>
+      </div>
     );
   }
 }

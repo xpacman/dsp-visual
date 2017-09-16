@@ -1,14 +1,11 @@
 import React from 'react';
-import {NavLink} from 'react-router-dom';
+import { Nav, NavItem, NavLink } from 'reactstrap';
 
 const Primary = () => (
-  <nav>
-    <ul>
-      <li><NavLink exact to="/">Home</NavLink></li>
-      <li><NavLink to="/about">About</NavLink></li>
-      <li><NavLink to="/this/will/404">Broken link</NavLink></li>
-    </ul>
-  </nav>
+  <Nav className="pull-right">
+    <NavItem><NavLink exact to="/">Home</NavLink></NavItem>
+    <NavItem><NavLink to="/about">About</NavLink></NavItem>
+  </Nav>
 );
 
 export default Primary;

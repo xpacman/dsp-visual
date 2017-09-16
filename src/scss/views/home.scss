@@ -1,8 +1,8 @@
-.module {
-  margin: 0 0 0 12px;
-  padding: 3px 18px;
-  font-weight: bold;
-  color: #fff;
-  background: green;
-  display: inline-block
+.container {
+  max-width: 100%;
+  overflow:hidden;
+  height:100%;
+  :global(.row) {
+    height:100%;
+  }
 }
