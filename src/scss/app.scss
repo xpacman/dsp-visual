@@ -1,0 +1,13 @@
+/**
+ * Bootstrapper
+ * 
+ * This bootstraps globals and base only. React views and components
+ * import their respective .scss files directly in the .js. All views and
+ * components utilise css modules (https://github.com/css-modules/css-modules)
+ * 
+ * Variables, mixins etc should all be called directly from the .scss using them.
+ * E.g. @import '~variables' to include variables in the .scss
+ */
+
+@import './base';
+@import './globals';

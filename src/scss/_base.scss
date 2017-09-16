@@ -1,0 +1,53 @@
+@import "~variables";
+@import "~respond";
+
+//
+// Reset
+// 
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,a,abbr,acronym,address,big,cite,code,del,dfn,img,ins,kbd,q,s,samp,small,strike,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td,article,aside,canvas,details,figcaption,figure,footer,header,hgroup,menu,nav,section,summary,time,mark,audio,video{margin:0;padding:0;border:0;outline:0;font-family:$font-family;font-size:100%;font:inherit;vertical-align:baseline}
+article,aside,details,figcaption,figure,footer,header,hgroup,menu,nav,section,main{display:block}
+a,button,input,textarea{font-family:$font-family;font-size:100%}
+ol,ul{list-style:none}
+blockquote,q{quotes:none}
+blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}
+:focus{outline:none}
+ins{text-decoration:none}
+del{text-decoration:line-through}
+table{border-collapse:collapse;border-spacing:0}
+
+//
+// Base/defaults
+// 
+*, :before, :after { box-sizing: border-box }
+
+html { -webkit-tap-highlight-color: transparent }
+html, body, :global(#root) { height: 100% }
+body {
+  background-color: #f7f7f7;
+  color: #000;
+  font-family: $font-family;
+  font-size: 16px;
+  line-height: 1.56;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+input:-webkit-autofill { background-color: transparent !important }
+::selection {
+  background: #000;
+  color: #fff;
+  text-shadow: none
+}
+q { quotes: "“" "”" "‘" "’" }
+
+//
+// Responsive
+// 
+@include respond(all-phones) {
+  body {
+    width: 100%;
+    min-width: 0;
+    -webkit-text-size-adjust: none;
+    -ms-text-size-adjust: none
+  }
+}

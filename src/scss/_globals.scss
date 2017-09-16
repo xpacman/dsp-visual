@@ -1,0 +1,24 @@
+// Clearfix
+:global(.clearfix:after) {
+  content: "";
+  display: table;
+  clear: both
+}
+
+// Image replacement
+:global(.ir) {
+  text-indent: 100%;
+  font: 0/0 a;
+  white-space: nowrap;
+  overflow: hidden
+}
+
+// For demo only, delete this when using this boilerplate
+:global(.global) {
+  margin: 0 0 0 12px;
+  padding: 3px 18px;
+  font-weight: bold;
+  color: #fff;
+  background: red;
+  display: inline-block
+}

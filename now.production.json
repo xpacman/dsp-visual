@@ -1,0 +1,4 @@
+{
+  "name": "webpack-react-production",
+  "alias": "subdomain.example.com"
+}
