@@ -37,8 +37,29 @@ module.exports = {
       },
       {
         test: /\.scss$/,
-        loaders: ['style-loader', 'css-loader?modules&importLoaders=1&localIdentName=[name]__[local]__[hash:base64:5]', 'postcss-loader', 'sass-loader'],
-        exclude: /node_modules/
+        use: [
+          {
+            loader: 'style-loader',
+          },
+          {
+            loader: 'css-loader',
+            options: {
+              sourceMap: true,
+              importLoaders: true,
+              // CSS Modules https://github.com/css-modules/css-modules
+              modules: true,
+              localIdentName: '[name]_[local]_[hash:base64:3]',
+              // CSS Nano http://cssnano.co/options/
+              minimize: false,
+            },
+          },
+          {
+            loader: 'postcss-loader',
+          },
+          {
+            loader: 'sass-loader',
+          },
+        ],
       },
       { test: /\.(png|jpg|gif)$/, use: 'url-loader?limit=15000&name=[name]-[hash].[ext]' },
       { test: /\.eot(\?v=\d+.\d+.\d+)?$/, use: 'file-loader' },

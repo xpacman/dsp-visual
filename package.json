@@ -70,7 +70,7 @@
     "webpack-dev-server": "^2.8.2"
   },
   "dependencies": {
-    "bootstrap": "^v4.0.0-alpha.6",
+    "bootstrap": "^4.0.0-alpha.6",
     "google-map-react": "^0.24.0",
     "react": "^15.6.1",
     "react-addons-css-transition-group": "^15.6.0",

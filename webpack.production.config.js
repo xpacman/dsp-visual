@@ -44,9 +44,22 @@ module.exports = {
         use: ExtractTextPlugin.extract({
           fallback: 'style-loader',
           use: [
-            'css-loader?modules&importLoaders=1&localIdentName=[hash:base64:5]',
-            'postcss-loader',
-            { loader: 'sass-loader', query: { sourceMap: false } }
+            {
+              loader: 'css-loader',
+              options: {
+                sourceMap: false,
+                importLoaders: 1,
+                modules: true,
+                localIdentName: '[hash:base64:4]',
+                minimize: true,
+              },
+            },
+            {
+              loader: 'postcss-loader',
+            },
+            {
+              loader: 'sass-loader',
+            }
           ],
         }),
       },
