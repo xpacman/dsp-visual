@@ -1,1 +1,5 @@
-export counter from './counter.reducer';
+import searchReducer from './search';
+
+export default {
+  search: searchReducer,
+};
