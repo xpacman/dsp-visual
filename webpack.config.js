@@ -87,7 +87,7 @@ module.exports = {
     }),
     new webpack.optimize.ModuleConcatenationPlugin(),
     new HtmlWebpackPlugin({
-      template: `${__dirname}/src/index.html`,
+      template: `${__dirname}/src/index.ejs`,
       filename: 'index.html',
       inject: 'body',
     }),
