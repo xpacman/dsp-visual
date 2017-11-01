@@ -1,8 +1,14 @@
 import React from 'react';
-import { Collapse, Navbar, NavbarToggler, NavbarBrand, Nav, NavItem, NavLink, Container, Row, Col } from 'reactstrap';
-import IconBath from 'react-icons/lib/fa/beer';
+import {Collapse, Navbar, NavbarToggler, NavbarBrand, Nav, NavItem, NavLink, Container, Row, Col} from 'reactstrap';
 import styles from './home.scss';
-import { Link } from 'react-router-dom';
+import {Link} from 'react-router-dom';
+
+import IconBuildings from './icons/svg/buildings.svg';
+import IconHouse from './icons/svg/house-1.svg';
+import IconConstruction from './icons/svg/construction.svg';
+import IconMap from './icons/svg/map.svg';
+import IconCommercial from './icons/svg/cityscape.svg';
+import IconGarage from './icons/svg/garage.svg';
 
 export default class Example extends React.Component {
   constructor(props) {
@@ -25,7 +31,7 @@ export default class Example extends React.Component {
       <div className={styles.container}>
 
         <Navbar color="white" light toggleable>
-          <NavbarToggler right onClick={this.toggle} />
+          <NavbarToggler right onClick={this.toggle}/>
           <NavbarBrand href="/">&nbsp;</NavbarBrand>
           <Collapse isOpen={this.state.isOpen} navbar>
             <Nav className="ml-auto" navbar>
@@ -45,16 +51,46 @@ export default class Example extends React.Component {
 
           <Row className={styles.propertyTypeSelector}>
 
-            <Col md="4" xs="6"><Link to={'/'}><IconBath /> <span>Byty</span></Link></Col>
-            <Col md="4" xs="6"><Link to={'/'}><IconBath /> <span>Domy</span></Link></Col>
-            <Col md="4" xs="6"><Link to={'/'}><IconBath /> <span>Projekty</span></Link></Col>
+            <Col md="4" xs="6">
+              <Link to={'/'}>
+                <img src={IconBuildings}/>
+                <span>Byty</span>
+              </Link>
+            </Col>
+            <Col md="4" xs="6">
+              <Link to={'/'}>
+                <img src={IconHouse}/>
+                <span>Domy</span>
+              </Link>
+            </Col>
+            <Col md="4" xs="6">
+              <Link to={'/'}>
+                <img src={IconConstruction}/>
+                <span>Projekty</span>
+              </Link>
+            </Col>
 
           </Row>
 
           <Row className={styles.propertyTypeSelector}>
-            <Col md="4" xs="6"><Link to={'/'}><IconBath /> <span>Pozemky</span></Link></Col>
-            <Col md="4" xs="6"><Link to={'/'}><IconBath /> <span>Komercne</span></Link></Col>
-            <Col md="4" xs="6"><Link to={'/'}><IconBath /> <span>Ostatne</span></Link></Col>
+            <Col md="4" xs="6">
+              <Link to={'/'}>
+                <img src={IconMap}/>
+                <span>Pozemky</span>
+              </Link>
+            </Col>
+            <Col md="4" xs="6">
+              <Link to={'/'}>
+                <img src={IconCommercial}/>
+                <span>Komercne</span>
+              </Link>
+            </Col>
+            <Col md="4" xs="6">
+              <Link to={'/'}>
+                <img src={IconGarage}/>
+                <span>Ostatne</span>
+              </Link>
+            </Col>
           </Row>
 
         </Container>

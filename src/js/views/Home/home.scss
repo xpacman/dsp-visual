@@ -24,8 +24,16 @@
   display: block;
   padding: 20px 0;
   text-align: center;
+  height: 100%;
+
   &:hover{
     background-color: $gray-lightest;
+  }
+
+  svg, img, object {
+    width: 80%;
+    height: 70px;
+    fill: red;
   }
 
   span {
@@ -36,10 +44,6 @@
 }
 
 .propertyTypeSelector {
-  svg {
-    width: 80%;
-    height: 50px;
-  }
 
   > div {
     padding: 0;
