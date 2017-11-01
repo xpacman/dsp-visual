@@ -29,7 +29,6 @@ export default class Example extends React.Component {
   render() {
     return (
       <div className={styles.container}>
-
         <Navbar color="white" light toggleable>
           <NavbarToggler right onClick={this.toggle}/>
           <NavbarBrand href="/">&nbsp;</NavbarBrand>
