@@ -1,0 +1,48 @@
+@import '~variables';
+
+.sortControl {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.resultContainer {
+  border-bottom: 1px solid $gray-lighter;
+}
+
+
+.imagesContainer {
+  display: flex;
+
+  span {
+    margin-right: 2px;
+  }
+
+  img {
+    width: 100%;
+
+  }
+}
+
+.infoContainer {
+  margin: 1rem 0;
+
+  span {
+    display: block;
+    font-size: 18px;
+
+  }
+
+  a {
+    color: red !important;
+    font-weight: bold;
+
+    &:hover {
+      cursor: pointer;
+    }
+  }
+}
+
+.locality {
+  color: grey;
+}
