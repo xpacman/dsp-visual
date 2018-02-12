@@ -1,0 +1,42 @@
+@import "~variables";
+
+.container {
+  max-width: 100%;
+  overflow: hidden;
+  height: 100%;
+}
+
+.topOptionsBar {
+  display: flex;
+  flex-direction: row;
+  border-bottom: 1px solid $optionsBarBorderColor;
+  color: $optionsBarColor;
+  justify-content: space-between;
+}
+
+.topOptionsBar__item {
+  color: $optionsBarItemColor;
+  padding: $optionsBarItemPadding;
+}
+
+.topOptionsBar__item--dropdown {
+  display: inline-flex;
+  color: $optionsBarItemColor;
+  cursor: pointer;
+  vertical-align: middle;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.topOptionsBar__item--dropdown__dropdownToggle {
+  padding: $optionsBarItemPadding;
+  &:hover {
+    color: $optionsBarHoverColor;
+  }
+}
+
+.topOptionsBar__item--dropdown__dropdownMenu {
+  border: 1px solid $optionsBarBorderColor;
+  margin: 0;
+  background-color: $optionsBarDropdownMenuBg;
+}

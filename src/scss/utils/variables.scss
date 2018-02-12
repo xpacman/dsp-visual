@@ -1,14 +1,30 @@
 @import '~bootstrap/scss/functions', '~bootstrap/scss/variables';
 
+$body-bg: black;
 
 //
 // Fonts
 //
 $font-family: 'Helvetica Neue', Helvetica, Arial, 'sans-serif';
 
-$spacer-y:        2rem;
-$gray:            #464a4c;
-$gray-dark:       #292b2c;
-$gray-light:      #636c72;
-$gray-lighter:    #eceeef;
-$gray-lightest:   #f7f7f9;
+$spacer-y: 2rem;
+$gray: #464a4c;
+$gray-dark: #292b2c;
+$gray-light: #636c72;
+$gray-lighter: #eceeef;
+$gray-lightest: #f7f7f9;
+
+// Navigation
+$sideMenuItemColor: #868e96;
+$sideMenuItemHover: #adb5bd;
+$sideMenuItemActiveColor: white;
+
+// Options bar
+$optionsBarColor: $gray-light;
+$optionsBarHoverColor: $gray-lighter;
+$optionsBarBorderColor: $gray-dark;
+$optionsBarItemPadding: 10px;
+$optionsBarItemColor: $gray-light;
+$optionsBarDropdownMenuBg: $body-bg;
+$optionsBarDropdownMenuBorderColor: $gray-dark;
+

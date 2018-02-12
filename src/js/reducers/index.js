@@ -1,5 +1,5 @@
-import searchReducer from './search';
+import sideMenu from './sideMenu';
 
 export default {
-  search: searchReducer,
+  sideMenu: sideMenu
 };
