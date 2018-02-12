@@ -1,0 +1,40 @@
+/**
+ * Utility to handle responsive media queries easily.
+ * 
+ * @example
+ *  @import '~respond';
+ *  @include respond(phone-landscape) {
+ *    ...
+ *  }
+ */
+
+$tablet-landscape-min: 1024px;
+$tablet-portrait-min: 768px;
+$tablet-portrait-max: ($tablet-landscape-min - 1); // 1023px
+$phone-landscape-min: 480px;
+$phone-landscape-max: ($tablet-portrait-min - 1); // 767px
+$phone-portrait-max: ($phone-landscape-min - 1); // 479px
+
+@mixin respond($media) {
+  @if $media == desktop {
+    @media (min-width: $tablet-landscape-min) { @content; }
+  }
+  @else if $media == all-devices {
+    @media (max-width: $tablet-portrait-max) { @content; }
+  }
+  @else if $media == all-phones {
+    @media (max-width: $phone-landscape-max) { @content; }
+  }
+  @else if $media == tablet-landscape {
+    @media (min-width: $tablet-landscape-min) and  (max-width: $tablet-landscape-max) { @content; }
+  }
+  @else if $media == tablet-portrait {
+    @media (min-width: $tablet-portrait-min) and (max-width: $tablet-portrait-max) { @content; }
+  }
+  @else if $media == phone-landscape {
+    @media (min-width: $phone-landscape-min) and (max-width: $phone-landscape-max) { @content; }
+  }
+  @else if $media == phone-portrait {
+    @media (max-width: $phone-portrait-max) { @content; }
+  }
+}

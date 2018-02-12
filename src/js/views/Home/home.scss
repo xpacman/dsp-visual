@@ -1,0 +1,15 @@
+@import "~variables";
+
+.container {
+  max-width: 100%;
+  overflow: hidden;
+  height: 100%;
+  :global(.row) {
+    height: 100%;
+  }
+}
+
+:global(.navbar-brand) {
+  background-color: gray;
+  width: 200px;
+}
