@@ -58,9 +58,6 @@ export default class SideMenu extends React.Component {
                   <Link id={`sideMenu__item-${i}`} className={`${styles.sideMenu__item__link }`}
                         to={route.slug}>{route.title}</Link>
                 }
-                <Tooltip placement={"right"} target={`sideMenu__item-${i}`}>
-                  <strong>{route.title}</strong>
-                </Tooltip>
               </NavItem>
             );
           })
