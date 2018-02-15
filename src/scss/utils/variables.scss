@@ -1,6 +1,7 @@
 @import '~bootstrap/scss/functions', '~bootstrap/scss/variables';
 
 $body-bg: black;
+$body-color: #A5ABB1;
 
 //
 // Fonts
@@ -22,7 +23,7 @@ $sideMenuItemActiveColor: white;
 // Options bar
 $optionsBarColor: $gray-light;
 $optionsBarHoverColor: $gray-lighter;
-$optionsBarBorderColor: $gray-dark;
+$optionsBarBorderColor: $gray;
 $optionsBarItemPadding: 10px;
 $optionsBarItemColor: $gray-light;
 $optionsBarDropdownMenuBg: $body-bg;

@@ -6,6 +6,14 @@
   height: 100%;
 }
 
+.inputValuesDropdown {
+  min-width: 200px;
+
+  & > input {
+    background: none;
+  }
+}
+
 .topOptionsBar {
   display: flex;
   flex-direction: row;
@@ -30,6 +38,9 @@
 
 .topOptionsBar__item--dropdown__dropdownToggle {
   padding: $optionsBarItemPadding;
+  display: flex;
+  vertical-align: middle;
+  align-items: center;
   &:hover {
     color: $optionsBarHoverColor;
   }

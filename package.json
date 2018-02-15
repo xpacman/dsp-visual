@@ -76,6 +76,7 @@
     "d3-scale": "^2.0.0",
     "google-map-react": "^0.24.0",
     "konva": "^1.7.6",
+    "linear-solve": "^1.2.1",
     "react": "^15.6.1",
     "react-addons-css-transition-group": "^15.6.0",
     "react-addons-transition-group": "^15.6.0",
