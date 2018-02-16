@@ -20,10 +20,11 @@ export default class Regression extends React.Component {
         approximation: false
       },
       inputValues: inputValues,
-      selectedApproximation: 'line'
+      selectedApproximation: 'line',
+      displayLeastSquares: true
     };
 
-    this.canvasManager = new CanvasManager();
+    this.canvasManager = new CanvasManager(); // This class holds information about canvas size, scales etc...
     this.approximationResults = {}; // Approximations will be placed here
     this.chartMargins = [0, 75, 100, 0]; // Margins top, right, bottom, left, right and bottom are greater because we need leave space for axes
     this.xTickMargins = [20, 0];
@@ -168,18 +169,49 @@ export default class Regression extends React.Component {
   }
 
   render() {
-    const {dropdowns, inputValues, selectedApproximation} = this.state;
+    const {dropdowns, inputValues, selectedApproximation, displayLeastSquares} = this.state;
     // Recalculated points from input values
     let points = [];
-    let xTicks = [];
-    let yTicks = [];
+    const xTicks = {ticks: [], grid: []};
+    const yTicks = {ticks: [], grid: []};
     if (this.chartWrapper !== null) {
       points = this.getPoints(inputValues, this.canvasManager.xScale, this.canvasManager.yScale);
-      xTicks = this.canvasManager.xScale.ticks(10);
-      xTicks.pop();
-      yTicks = this.canvasManager.yScale.ticks(10);
-      yTicks.shift();
+
+      // Prepare ticks and grid for render (grid will be on separate layer, so split them right now instead of iterating through ticks twice)
+      this.canvasManager.xScale.ticks(10).map((tick, index) => {
+        const xPos = this.canvasManager.xScale(tick) + this.xTickMargins[1];
+        const yPos = this.canvasManager.dimensions[1] - this.chartMargins[2] + this.xTickMargins[0];
+        xTicks.ticks.push(<Text key={index}
+                                text={tick}
+                                x={xPos}
+                                y={yPos}
+                                {...config.axisTick}
+        />);
+        xTicks.grid.push(<Line key={index}
+                               points={[xPos, yPos - this.xTickMargins[0], xPos, yPos - this.canvasManager.dimensions[1]]}
+                               {...config.axisTickLine}
+        />);
+      });
+      xTicks.grid.pop();
+      xTicks.ticks.pop();
+
+      this.canvasManager.yScale.ticks(10).map((tick, index) => {
+        const xPos = this.canvasManager.dimensions[0] - this.chartMargins[1] + this.yTickMargins[1];
+        const yPos = this.canvasManager.yScale(tick) + this.yTickMargins[0];
+        yTicks.ticks.push(<Text key={index}
+                                text={tick}
+                                x={xPos}
+                                y={yPos}
+                                {...config.axisTick}
+        />);
+        yTicks.grid.push(<Line key={index}
+                               points={[xPos - this.yTickMargins[1], yPos, xPos - this.canvasManager.dimensions[0] - this.chartMargins[1], yPos]}
+                               {...config.axisTickLine}
+        />);
+      })
     }
+    yTicks.grid.shift();
+    yTicks.ticks.shift();
 
     let approxLineProps = {
       ...config.approximationLine
@@ -248,45 +280,54 @@ export default class Regression extends React.Component {
              }
            }}>
         <div className={styles.topOptionsBar}>
-          <Dropdown className={`${styles["topOptionsBar__item--dropdown"]}`}
-                    isOpen={dropdowns.approximation}
-                    toggle={this.toggleDropdown.bind(this, "approximation")}>
-            <DropdownToggle
-              tag="span"
-              className={`${styles["topOptionsBar__item--dropdown__dropdownToggle"]}`}
-              onClick={this.toggleDropdown.bind(this, "approximation")}
-              data-toggle="dropdown"
-              aria-expanded={dropdowns.approximation}
-              caret>
-              Aproximace: {approxLabel}
-            </DropdownToggle>
-            <DropdownMenu className={`pl-2 ${styles["topOptionsBar__item--dropdown__dropdownMenu"]}`}>
-              <FormGroup check>
-                <Label check>
-                  <Input type="radio" checked={selectedApproximation === "line"}
-                         onChange={(event) => this.setState({selectedApproximation: event.target.name})}
-                         name="line"/>{' '}
-                  Přímka
-                </Label>
-              </FormGroup>
-              <FormGroup check>
-                <Label check>
-                  <Input type="radio" checked={selectedApproximation === "parabola"}
-                         onChange={(event) => this.setState({selectedApproximation: event.target.name})}
-                         name="parabola"/>{' '}
-                  Parabola
-                </Label>
-              </FormGroup>
-              <FormGroup check>
-                <Label check>
-                  <Input type="radio" checked={selectedApproximation === "exponential"}
-                         onChange={(event) => this.setState({selectedApproximation: event.target.name})}
-                         name="exponential"/>{' '}
-                  Exponenciála
-                </Label>
-              </FormGroup>
-            </DropdownMenu>
-          </Dropdown>
+          <div>
+            <Dropdown className={`${styles["topOptionsBar__item--dropdown"]} ${styles.divider}`}
+                      isOpen={dropdowns.approximation}
+                      toggle={this.toggleDropdown.bind(this, "approximation")}>
+              <DropdownToggle
+                tag="span"
+                className={`${styles["topOptionsBar__item--dropdown__dropdownToggle"]}`}
+                onClick={this.toggleDropdown.bind(this, "approximation")}
+                data-toggle="dropdown"
+                aria-expanded={dropdowns.approximation}
+                caret>
+                Aproximace: {approxLabel}
+              </DropdownToggle>
+              <DropdownMenu className={`pl-2 ${styles["topOptionsBar__item--dropdown__dropdownMenu"]}`}>
+                <FormGroup check>
+                  <Label check>
+                    <Input type="radio" checked={selectedApproximation === "line"}
+                           onChange={(event) => this.setState({selectedApproximation: event.target.name})}
+                           name="line"/>{' '}
+                    Přímka
+                  </Label>
+                </FormGroup>
+                <FormGroup check>
+                  <Label check>
+                    <Input type="radio" checked={selectedApproximation === "parabola"}
+                           onChange={(event) => this.setState({selectedApproximation: event.target.name})}
+                           name="parabola"/>{' '}
+                    Parabola
+                  </Label>
+                </FormGroup>
+                <FormGroup check>
+                  <Label check>
+                    <Input type="radio" checked={selectedApproximation === "exponential"}
+                           onChange={(event) => this.setState({selectedApproximation: event.target.name})}
+                           name="exponential"/>{' '}
+                    Exponenciála
+                  </Label>
+                </FormGroup>
+              </DropdownMenu>
+            </Dropdown>
+            <FormGroup check className={`${styles.topOptionsBar__item} ml-4`}>
+              <Label check>
+                <Input checked={displayLeastSquares}
+                       onChange={() => this.setState({displayLeastSquares: !displayLeastSquares})} type="checkbox"/>{' '}
+                Zobrazovat nejmenší čtverce
+              </Label>
+            </FormGroup>
+          </div>
           <Dropdown className={`${styles["topOptionsBar__item--dropdown"]}`}
                     isOpen={dropdowns.inputValues}
                     toggle={this.toggleDropdown.bind(this, "inputValues")}>
@@ -325,51 +366,9 @@ export default class Regression extends React.Component {
           <Stage ref={(stage) => this.stage = stage}
                  width={this.canvasManager.dimensions[0]}
                  height={this.canvasManager.dimensions[1]}>
-            <Layer ref={(layer) => this.axisLayer = layer}>
-              <Line
-                points={[0, this.canvasManager.dimensions[1] - this.chartMargins[2], this.canvasManager.dimensions[0], this.canvasManager.dimensions[1] - this.chartMargins[2]]}
-                {...config.axisLine}
-              />
-              {
-                xTicks.map((tick, index) => {
-                  return <Group key={index}
-                                x={this.canvasManager.xScale(tick) + this.xTickMargins[1]}
-                                y={this.canvasManager.dimensions[1] - this.chartMargins[2] + this.xTickMargins[0]}>
-                    <Text
-                      text={tick}
-                      x={0}
-                      y={0}
-                      {...config.axisTick}
-                    />
-                    <Line
-                      points={[0, -this.xTickMargins[0], 0, -this.canvasManager.dimensions[1]]}
-                      {...config.axisTickLine}
-                    />
-                  </Group>
-                })
-              }
-              <Line
-                points={[this.canvasManager.dimensions[0] - this.chartMargins[1], 0, this.canvasManager.dimensions[0] - this.chartMargins[1], this.canvasManager.dimensions[1]]}
-                {...config.axisLine}
-              />
-              {
-                yTicks.map((tick, index) => {
-                  return <Group key={index}
-                                x={this.canvasManager.dimensions[0] - this.chartMargins[1] + this.yTickMargins[1]}
-                                y={this.canvasManager.yScale(tick) + this.yTickMargins[0]}>
-                    <Text
-                      text={tick}
-                      x={0}
-                      y={0}
-                      {...config.axisTick}
-                    />
-                    <Line
-                      points={[-this.yTickMargins[1], 0, -this.canvasManager.dimensions[0] - this.chartMargins[1], 0]}
-                      {...config.axisTickLine}
-                    />
-                  </Group>
-                })
-              }
+            <Layer ref={(layer) => this.gridLayer = layer}>
+              {xTicks.grid}
+              {yTicks.grid}
             </Layer>
             <Layer ref={(layer) => this.crosshairsLayer = layer}>
               <Group x={0}
@@ -401,15 +400,58 @@ export default class Regression extends React.Component {
               {
                 points.map((point, index) => {
                   if (index % 2 === 0) {
+                    const leastSquareSize = points[index + 1] - approxLineProps.points[index + 1];
+                    let xShift = 0;
+                    let yShift = 0;
+                    // Squares laying bellow approximation line must be flipped on vertical axis to approach approximation line
+                    const bellow = points[index + 1] >= approxLineProps.points[index + 1];
+                    // When function has raising trend, need to position squares differently
+                    const raising = points[1] > points[points.length - 1];
+                    if (raising) {
+                      if (bellow) {
+                        yShift = -leastSquareSize;
+                      } else {
+                        xShift = leastSquareSize;
+                      }
+                    } else {
+                      if (bellow) {
+                        xShift = -leastSquareSize;
+                        yShift = -leastSquareSize;
+                      }
+                    }
                     return <Group key={index} x={point} y={points[index + 1]}>
                       <Line points={[-10, 0, 10, 0]} {...config.pointCross}/>
                       <Line points={[0, -10, 0, 10]}{...config.pointCross}/>
                       <Circle {...config.pointCircle} x={0} y={0}/>
+                      {displayLeastSquares &&
+                      <Rect x={xShift} y={yShift}
+                            fillLinearGradientStartPoint={{x: 0, y: 0}}
+                            fillLinearGradientEndPoint={{x: Math.abs(leastSquareSize), y: Math.abs(leastSquareSize)}}
+                            {...config.leastSquares}
+                            width={Math.abs(leastSquareSize)}
+                            height={Math.abs(leastSquareSize)}/>
+                      }
                     </Group>
                   }
                 })
               }
               <Line {...approxLineProps}/>
+            </Layer>
+            <Layer ref={(layer) => this.axisLayer = layer}>
+              <Rect {...config.axisBackground} x={this.canvasManager.dimensions[0] - this.chartMargins[1]} y={0}
+                    width={this.chartMargins[1]} height={this.canvasManager.dimensions[1] - this.chartMargins[2]}/>
+              <Line
+                points={[0, this.canvasManager.dimensions[1] - this.chartMargins[2], this.canvasManager.dimensions[0], this.canvasManager.dimensions[1] - this.chartMargins[2]]}
+                {...config.axisLine}
+              />
+              {xTicks.ticks}
+              <Rect {...config.axisBackground} x={0} y={this.canvasManager.dimensions[1]}
+                    width={this.canvasManager.dimensions[0]} height={this.chartMargins[2]}/>
+              <Line
+                points={[this.canvasManager.dimensions[0] - this.chartMargins[1], 0, this.canvasManager.dimensions[0] - this.chartMargins[1], this.canvasManager.dimensions[1]]}
+                {...config.axisLine}
+              />
+              {yTicks.ticks}
             </Layer>
           </Stage>
         </div>
