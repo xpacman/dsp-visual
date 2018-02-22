@@ -63,10 +63,10 @@ export default class SideMenu extends React.Component {
           })
         }
         <NavItem className={`${styles.sideMenu__item} ${styles["sideMenu__item--menuToggleArrow"]}`}>
-          <NavLink className={`${styles.sideMenu__item__link }`} onClick={onCollapse.bind(this, !collapsed)}>
+          <NavLink className={`${styles.sideMenu__item__link }`} onClick={null}>
             {
               collapsed ?
-                <span>🡒</span>
+                <span> </span>
                 :
                 <span>🡐</span>
             }

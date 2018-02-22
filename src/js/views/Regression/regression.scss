@@ -59,4 +59,19 @@
   border: 1px solid $optionsBarBorderColor;
   margin: 0;
   background-color: $optionsBarDropdownMenuBg;
+
+  input {
+    background: $inputBg;
+    border: 1px solid black;
+
+    &:focus {
+      background: $inputBg;
+    }
+  }
+}
+
+.invalidInput {
+  input:focus {
+    border-color: red !important;
+  }
 }

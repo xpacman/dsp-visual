@@ -5,6 +5,7 @@ import CanvasManager from '../../utils/CanvasManager';
 import {Stage, Layer, Rect, Line, Text, Group, Circle} from 'react-konva';
 import {max, min} from 'd3-array';
 import linear from 'linear-solve';
+import {arrayEquals} from '../../utils/utils';
 import config from './config';
 import Konva from 'konva';
 
@@ -19,6 +20,7 @@ export default class Regression extends React.Component {
         inputValues: false,
         approximation: false
       },
+      inputValid: true,
       inputValues: inputValues,
       selectedApproximation: 'line',
       displayLeastSquares: true
@@ -35,12 +37,15 @@ export default class Regression extends React.Component {
     this.crosshairsLayer = null; // Crosshairs layer ref
     this.pointsLayer = null; // Points layer ref
     this.axisLayer = null; // Axes layer ref
+
   }
 
   componentDidMount() {
     setTimeout(() => {
       // Delayed mount of konva chart
       this.forceUpdate();
+      // Listen for window resizes
+      window.addEventListener("resize", () => this.forceUpdate());
     }, 1000);
 
   }
@@ -50,22 +55,30 @@ export default class Regression extends React.Component {
     if (this.chartWrapper !== null) {
       // If dimensions or data has changed anyhow -> rescale
       if ((this.chartWrapper.offsetWidth !== this.canvasManager.dimensions[0] || this.chartWrapper.offsetHeight !== this.canvasManager.dimensions[1])
-        || this.state.inputValues !== nextState.inputValues) {
-        this.canvasManager.dimensions = [this.chartWrapper.offsetWidth, this.chartWrapper.offsetHeight];
-        const splitPoints = this.splitPoints(nextState.inputValues);
-        // Minimum and maximum of X from input values
-        this.canvasManager.xDomain = [min(splitPoints.xPoints.map((d) => d)), max(splitPoints.xPoints.map((d) => Math.abs(d)))];
-        // From left edge to right edge minus space for axis
-        this.canvasManager.xRange = [0, this.canvasManager.dimensions[0] - this.chartMargins[1]];
-        // From zero to max Y point value
-        this.canvasManager.yDomain = [0, max(splitPoints.yPoints.map((d) => Math.abs(d)))];
-        // From bottom edge to top edge
-        this.canvasManager.yRange = [this.canvasManager.dimensions[1] - this.chartMargins[2], 0];
-        this.canvasManager.rescale();
-        this.approximationResults = this.getApproximations(nextState.inputValues);
-        console.log("rescaled");
+        || !arrayEquals(this.state.inputValues, nextState.inputValues)) {
+        this.rescale(nextState.inputValues);
       }
     }
+  }
+
+  /**
+   * Rescales canvas for new data
+   * @param data
+   */
+  rescale(data) {
+    this.canvasManager.dimensions = [this.chartWrapper.offsetWidth, this.chartWrapper.offsetHeight];
+    const splitPoints = this.splitPoints(data);
+    // Minimum and maximum of X from input values
+    this.canvasManager.xDomain = [min(splitPoints.xPoints.map((d) => d)), max(splitPoints.xPoints.map((d) => Math.abs(d)))];
+    // From left edge to right edge minus space for axis
+    this.canvasManager.xRange = [0, this.canvasManager.dimensions[0] - this.chartMargins[1]];
+    // From zero to max Y point value
+    this.canvasManager.yDomain = [0, max(splitPoints.yPoints.map((d) => Math.abs(d)))];
+    // From bottom edge to top edge
+    this.canvasManager.yRange = [this.canvasManager.dimensions[1] - this.chartMargins[2], 0];
+    this.canvasManager.rescale();
+    this.approximationResults = this.getApproximations(data);
+    this.forceUpdate();
   }
 
   toggleDropdown(dropdown) {
@@ -169,7 +182,7 @@ export default class Regression extends React.Component {
   }
 
   render() {
-    const {dropdowns, inputValues, selectedApproximation, displayLeastSquares} = this.state;
+    const {dropdowns, inputValues, selectedApproximation, displayLeastSquares, inputValid} = this.state;
     // Recalculated points from input values
     let points = [];
     const xTicks = {ticks: [], grid: []};
@@ -323,7 +336,8 @@ export default class Regression extends React.Component {
             <FormGroup check className={`${styles.topOptionsBar__item} ml-4`}>
               <Label check>
                 <Input checked={displayLeastSquares}
-                       onChange={() => this.setState({displayLeastSquares: !displayLeastSquares})} type="checkbox"/>{' '}
+                       onChange={() => this.setState({displayLeastSquares: !displayLeastSquares})}
+                       type="checkbox"/>{' '}
                 Zobrazovat nejmenší čtverce
               </Label>
             </FormGroup>
@@ -341,7 +355,8 @@ export default class Regression extends React.Component {
               Vstupní hodnoty
             </DropdownToggle>
             <DropdownMenu
-              className={`${styles.inputValuesDropdown} ${styles["topOptionsBar__item--dropdown__dropdownMenu"]}`}>
+              className={`${styles.inputValuesDropdown} ${styles["topOptionsBar__item--dropdown__dropdownMenu"]}
+              ${!inputValid ? styles.invalidInput : ""}`}>
               <InputGroup>
                 <Input placeholder="x1, y1, x2, y2,..."
                        type="text"
@@ -350,10 +365,14 @@ export default class Regression extends React.Component {
                        onChange={(event) => this.inputValues.value = event.target.value}
                        onBlur={() => {
                          const values = this.inputValues.value.split(",").map((item) => {
-                           return parseInt(item, 10)
+                           return parseFloat(item, 10)
                          });
-                         // TODO: IMPLEMENT VALIDATION PROCESS
-                         this.setState({inputValues: values});
+                         // Wrong count of values
+                         if (values.length % 2 !== 0 || values.length < 4 || values.find((element) => isNaN(element)) !== undefined) {
+                           this.setState({inputValid: false});
+                         } else {
+                           this.setState({inputValues: values, inputValid: true});
+                         }
                        }}
                 />
               </InputGroup>
