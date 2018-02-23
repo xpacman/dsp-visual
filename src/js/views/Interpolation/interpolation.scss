@@ -1,0 +1,19 @@
+@import "~variables";
+
+.container {
+  max-width: 100%;
+  overflow: hidden;
+  height: 100%;
+}
+
+.inputValuesDropdown {
+  min-width: 200px;
+
+  & > input {
+    background: none;
+  }
+}
+
+.divider {
+  border-right: 1px solid $optionsBarBorderColor;
+}

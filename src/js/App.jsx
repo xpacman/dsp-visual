@@ -6,7 +6,8 @@ import {SideMenu} from './components';
 import styles from '../scss/app.scss';
 import Home from './views/Home';
 import NotFound from './views/NotFound';
-import Regression from './views/Regression'
+import Regression from './views/Regression';
+import Interpolation from './views/Interpolation';
 
 export default class App extends Component {
 
@@ -19,6 +20,7 @@ export default class App extends Component {
             <Switch>
               <Route exact path="/" component={Home}/>
               <Route path="/regrese" component={Regression}/>
+              <Route path="/interpolace" component={Interpolation}/>
               <Route component={NotFound}/>
             </Switch>
           </div>
