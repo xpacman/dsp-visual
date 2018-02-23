@@ -1,0 +1,59 @@
+@import '../../../scss/utils/variables';
+
+.topOptionsBar {
+  display: flex;
+  flex-direction: row;
+  border-bottom: 1px solid $optionsBarBorderColor;
+  color: $optionsBarColor;
+  justify-content: space-between;
+}
+
+.topOptionsBar__item {
+  color: $optionsBarItemColor;
+  padding: $optionsBarItemPadding;
+  display: inline-flex;
+  cursor: pointer;
+  vertical-align: middle;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.topOptionsBar__item--dropdown {
+  display: inline-flex;
+  color: $optionsBarItemColor;
+  cursor: pointer;
+  vertical-align: middle;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.topOptionsBar__item--dropdown__dropdownToggle {
+  padding: $optionsBarItemPadding;
+  display: flex;
+  vertical-align: middle;
+  align-items: center;
+  &:hover {
+    color: $optionsBarHoverColor;
+  }
+}
+
+.topOptionsBar__item--dropdown__dropdownMenu {
+  border: 1px solid $optionsBarBorderColor;
+  margin: 0;
+  background-color: $optionsBarDropdownMenuBg;
+
+  input {
+    background: $inputBg;
+    border: 1px solid black;
+
+    &:focus {
+      background: $inputBg;
+    }
+  }
+}
+
+.invalidInput {
+  input:focus {
+    border-color: red !important;
+  }
+}

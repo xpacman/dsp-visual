@@ -2,11 +2,12 @@ import React from 'react';
 import {Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Label, InputGroup, Input, FormGroup} from 'reactstrap';
 import styles from './regression.scss';
 import CanvasManager from '../../utils/CanvasManager';
+import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from '../../components'
 import {Stage, Layer, Rect, Line, Text, Group, Circle} from 'react-konva';
 import {max, min} from 'd3-array';
 import linear from 'linear-solve';
 import {arrayEquals} from '../../utils/utils';
-import config from './config';
+import config from '../../config';
 import Konva from 'konva';
 
 
@@ -163,13 +164,25 @@ export default class Regression extends React.Component {
     const approx = {
       line: [],
       parabola: [],
-      exponential: []
+      exponential: [],
+      coefficients: {
+        line: [lineA, lineB],
+        parabola: [parabolaCoef[0], parabolaCoef[1], parabolaCoef[2]],
+        exponential: [exponentialA, exponentialB]
+      },
+      leastSquaresLine: 0,
+      leastSquaresParabola: 0,
+      leastSquaresExponential: 0
     };
+
     inputValues.map((value, index) => {
       if (index % 2 === 0) {
         approx.line.push(this.canvasManager.xScale(value));
+        approx.leastSquaresLine += Math.pow(inputValues[index + 1] - lineB - lineA * value, 2);
         approx.parabola.push(this.canvasManager.xScale(value));
+        approx.leastSquaresParabola += Math.pow(inputValues[index + 1] - parabolaCoef[0] - parabolaCoef[1] * value - parabolaCoef[2] * Math.pow(value, 2), 2);
         approx.exponential.push(this.canvasManager.xScale(value));
+        approx.leastSquaresExponential += Math.pow(Math.exp(exponentialA + exponentialB * value) - inputValues[index + 1], 2);
         // y = ax + b
         approx.line.push(this.canvasManager.yScale(lineA * value + lineB));
         // y = c0 + c1x + c2x^2
@@ -185,7 +198,7 @@ export default class Regression extends React.Component {
     const {dropdowns, inputValues, selectedApproximation, displayLeastSquares, inputValid} = this.state;
     // Recalculated points from input values
     let points = [];
-    const xTicks = {ticks: [], grid: []};
+    const xTicks = {ticks: [], grid: [], tickRefs: []};
     const yTicks = {ticks: [], grid: []};
     if (this.chartWrapper !== null) {
       points = this.getPoints(inputValues, this.canvasManager.xScale, this.canvasManager.yScale);
@@ -196,6 +209,7 @@ export default class Regression extends React.Component {
         const yPos = this.canvasManager.dimensions[1] - this.chartMargins[2] + this.xTickMargins[0];
         xTicks.ticks.push(<Text key={index}
                                 text={tick}
+                                ref={(elem) => xTicks.tickRefs.push(elem)}
                                 x={xPos}
                                 y={yPos}
                                 {...config.axisTick}
@@ -205,6 +219,7 @@ export default class Regression extends React.Component {
                                {...config.axisTickLine}
         />);
       });
+      // Remove last tick and line (its renundant)
       xTicks.grid.pop();
       xTicks.ticks.pop();
 
@@ -223,16 +238,23 @@ export default class Regression extends React.Component {
         />);
       })
     }
+    // Remove first tick and line (its renundant)
     yTicks.grid.shift();
     yTicks.ticks.shift();
 
     let approxLineProps = {
       ...config.approximationLine
     };
+    const coef = this.approximationResults.hasOwnProperty("coefficients") ? this.approximationResults.coefficients :
+      {line: [0, 0], parabola: [0, 0, 0], exponential: [0, 0]};
     let approxLabel = "";
+    let equation = "";
+    let leastSquares = 0;
     switch (selectedApproximation) {
       case 'line':
         approxLabel = "Přímka";
+        equation = `y = ${coef.line[0].toFixed(3)}x + ${coef.line[1].toFixed(3)}`;
+        leastSquares = this.approximationResults.leastSquaresLine !== undefined ? this.approximationResults.leastSquaresLine : 0;
         approxLineProps = {
           ...approxLineProps,
           points: this.approximationResults.line,
@@ -243,6 +265,8 @@ export default class Regression extends React.Component {
         break;
       case 'parabola':
         approxLabel = "Parabola";
+        equation = `y = ${coef.parabola[0].toFixed(3)} + ${coef.parabola[1].toFixed(3)}x + ${coef.parabola[2].toFixed(3)}x^2`;
+        leastSquares = this.approximationResults.leastSquaresParabola !== undefined ? this.approximationResults.leastSquaresParabola : 0;
         approxLineProps = {
           ...approxLineProps,
           points: this.approximationResults.parabola,
@@ -253,6 +277,8 @@ export default class Regression extends React.Component {
         break;
       case 'exponential':
         approxLabel = "Exponenciála";
+        equation = `y = e^${coef.exponential[0].toFixed(3)}x + ${coef.exponential[1].toFixed(3)}`;
+        leastSquares = this.approximationResults.leastSquaresExponential !== undefined ? this.approximationResults.leastSquaresExponential : 0;
         approxLineProps = {
           ...approxLineProps,
           points: this.approximationResults.exponential,
@@ -285,100 +311,97 @@ export default class Regression extends React.Component {
                  xCrosshairGroup.setAttr("x", cursorPosition.x);
                  yCrosshairGroup.setAttr("y", cursorPosition.y);
                  const xText = xCrosshairGroup.getChildren()[1];
-                 xText.setAttr("text", (this.canvasManager.xDomain[1] * (100 / (this.canvasManager.dimensions[0] - this.chartMargins[1]) * xCrosshairGroup.getPosition().x) / 100).toFixed(3));
+                 xText.setAttr("text", (this.canvasManager.xDomain[1] * (100 / (this.canvasManager.dimensions[0] - this.chartMargins[1]) * xCrosshairGroup.getPosition().x) / 100).toFixed(2));
                  const yText = yCrosshairGroup.getChildren()[1];
                  //xText.setAttr("text", this.canvasManager.xScale(xCrosshairGroup.getPosition().x));
                  this.crosshairsLayer.getLayer().batchDraw();
+
+                 xTicks.ticks.map((tick, index) => {
+                   // Crosshair is overlapping tick -> hide tick
+                   if (tick.props.x >= cursorPosition.x - 30 && tick.props.x <= cursorPosition.x + 40) {
+                     xTicks.tickRefs[index].visible(false);
+                   } else {
+                     xTicks.tickRefs[index].visible(true);
+                   }
+                 });
+                 this.axisLayer.batchDraw();
                }
              }
            }}>
-        <div className={styles.topOptionsBar}>
+        <TopOptionsBar>
           <div>
-            <Dropdown className={`${styles["topOptionsBar__item--dropdown"]} ${styles.divider}`}
-                      isOpen={dropdowns.approximation}
-                      toggle={this.toggleDropdown.bind(this, "approximation")}>
-              <DropdownToggle
-                tag="span"
-                className={`${styles["topOptionsBar__item--dropdown__dropdownToggle"]}`}
-                onClick={this.toggleDropdown.bind(this, "approximation")}
-                data-toggle="dropdown"
-                aria-expanded={dropdowns.approximation}
-                caret>
-                Aproximace: {approxLabel}
-              </DropdownToggle>
-              <DropdownMenu className={`pl-2 ${styles["topOptionsBar__item--dropdown__dropdownMenu"]}`}>
-                <FormGroup check>
-                  <Label check>
-                    <Input type="radio" checked={selectedApproximation === "line"}
-                           onChange={(event) => this.setState({selectedApproximation: event.target.name})}
-                           name="line"/>{' '}
-                    Přímka
-                  </Label>
-                </FormGroup>
-                <FormGroup check>
-                  <Label check>
-                    <Input type="radio" checked={selectedApproximation === "parabola"}
-                           onChange={(event) => this.setState({selectedApproximation: event.target.name})}
-                           name="parabola"/>{' '}
-                    Parabola
-                  </Label>
-                </FormGroup>
-                <FormGroup check>
-                  <Label check>
-                    <Input type="radio" checked={selectedApproximation === "exponential"}
-                           onChange={(event) => this.setState({selectedApproximation: event.target.name})}
-                           name="exponential"/>{' '}
-                    Exponenciála
-                  </Label>
-                </FormGroup>
-              </DropdownMenu>
-            </Dropdown>
-            <FormGroup check className={`${styles.topOptionsBar__item} ml-4`}>
-              <Label check>
-                <Input checked={displayLeastSquares}
-                       onChange={() => this.setState({displayLeastSquares: !displayLeastSquares})}
-                       type="checkbox"/>{' '}
-                Zobrazovat nejmenší čtverce
-              </Label>
-            </FormGroup>
+            <TopOptionsBarDropdownItem toggle={this.toggleDropdown.bind(this, "approximation")}
+                                       isOpen={dropdowns.approximation}
+                                       dropdownClass={styles.divider}
+                                       dropdownMenuClass={"pl-2"}
+                                       dropdownToggleText={`Aproximace ${approxLabel}`}>
+              <FormGroup check>
+                <Label check>
+                  <Input type="radio" checked={selectedApproximation === "line"}
+                         onChange={(event) => this.setState({selectedApproximation: event.target.name})}
+                         name="line"/>{' '}
+                  Přímka
+                </Label>
+              </FormGroup>
+              <FormGroup check>
+                <Label check>
+                  <Input type="radio" checked={selectedApproximation === "parabola"}
+                         onChange={(event) => this.setState({selectedApproximation: event.target.name})}
+                         name="parabola"/>{' '}
+                  Parabola
+                </Label>
+              </FormGroup>
+              <FormGroup check>
+                <Label check>
+                  <Input type="radio" checked={selectedApproximation === "exponential"}
+                         onChange={(event) => this.setState({selectedApproximation: event.target.name})}
+                         name="exponential"/>{' '}
+                  Exponenciála
+                </Label>
+              </FormGroup>
+            </TopOptionsBarDropdownItem>
+            <TopOptionsBarItem className={`ml-4 ${styles.divider}`}>
+              <FormGroup check>
+                <Label check>
+                  <Input checked={displayLeastSquares}
+                         onChange={() => this.setState({displayLeastSquares: !displayLeastSquares})}
+                         type="checkbox"/>{' '}
+                  Zobrazovat nejmenší čtverce
+                </Label>
+              </FormGroup>
+            </TopOptionsBarItem>
+            <TopOptionsBarItem className={`ml-4 ${styles.divider}`}>
+              {equation}
+            </TopOptionsBarItem>
+            <TopOptionsBarItem className={"ml-4"}>
+              p^2 = {leastSquares.toFixed(3)}
+            </TopOptionsBarItem>
           </div>
-          <Dropdown className={`${styles["topOptionsBar__item--dropdown"]}`}
-                    isOpen={dropdowns.inputValues}
-                    toggle={this.toggleDropdown.bind(this, "inputValues")}>
-            <DropdownToggle
-              tag="span"
-              className={`${styles["topOptionsBar__item--dropdown__dropdownToggle"]}`}
-              onClick={this.toggleDropdown.bind(this, "inputValues")}
-              data-toggle="dropdown"
-              aria-expanded={dropdowns.inputValues}
-              caret>
-              Vstupní hodnoty
-            </DropdownToggle>
-            <DropdownMenu
-              className={`${styles.inputValuesDropdown} ${styles["topOptionsBar__item--dropdown__dropdownMenu"]}
-              ${!inputValid ? styles.invalidInput : ""}`}>
-              <InputGroup>
-                <Input placeholder="x1, y1, x2, y2,..."
-                       type="text"
-                       innerRef={(input) => this.inputValues = input}
-                       defaultValue={inputValues.join()}
-                       onChange={(event) => this.inputValues.value = event.target.value}
-                       onBlur={() => {
-                         const values = this.inputValues.value.split(",").map((item) => {
-                           return parseFloat(item, 10)
-                         });
-                         // Wrong count of values
-                         if (values.length % 2 !== 0 || values.length < 4 || values.find((element) => isNaN(element)) !== undefined) {
-                           this.setState({inputValid: false});
-                         } else {
-                           this.setState({inputValues: values, inputValid: true});
-                         }
-                       }}
-                />
-              </InputGroup>
-            </DropdownMenu>
-          </Dropdown>
-        </div>
+          <TopOptionsBarDropdownItem toggle={this.toggleDropdown.bind(this, "inputValues")}
+                                     isOpen={dropdowns.inputValues}
+                                     dropdownMenuClass={`${styles.inputValuesDropdown} ${!inputValid ? styles.invalidInput : ""}`}
+                                     dropdownToggleText={`Vstupní hodnoty`}>
+            <InputGroup>
+              <Input placeholder="x1, y1, x2, y2,..."
+                     type="text"
+                     innerRef={(input) => this.inputValues = input}
+                     defaultValue={inputValues.join()}
+                     onChange={(event) => this.inputValues.value = event.target.value}
+                     onBlur={() => {
+                       const values = this.inputValues.value.split(",").map((item) => {
+                         return parseFloat(item, 10)
+                       });
+                       // Wrong count of values
+                       if (values.length % 2 !== 0 || values.length < 4 || values.find((element) => isNaN(element)) !== undefined) {
+                         this.setState({inputValid: false});
+                       } else {
+                         this.setState({inputValues: values, inputValid: true});
+                       }
+                     }}
+              />
+            </InputGroup>
+          </TopOptionsBarDropdownItem>
+        </TopOptionsBar>
         <div id="regression-chart-wrapper" ref={(elem) => {
           this.chartWrapper = elem
         }} className="h-100 w-100">

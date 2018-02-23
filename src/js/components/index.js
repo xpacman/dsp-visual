@@ -3,3 +3,6 @@
  */
 
 export SideMenu from './SideMenu/SideMenu';
+export TopOptionsBar from './TopOptionsBar/TopOptionsBar';
+export TopOptionsBarItem from './TopOptionsBar/TopOptionsBarItem';
+export TopOptionsBarDropdownItem from './TopOptionsBar/TopOptionsBarDropdownItem';
