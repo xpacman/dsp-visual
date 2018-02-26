@@ -2,7 +2,7 @@ import React from 'react';
 import {Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Label, InputGroup, Input, FormGroup} from 'reactstrap';
 import styles from './interpolation.scss';
 import CanvasManager from '../../utils/CanvasManager';
-import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from '../../components'
+import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from '../../components';
 import {Stage, Layer, Rect, Line, Text, Group, Circle} from 'react-konva';
 import {max, min} from 'd3-array';
 import linear from 'linear-solve';
