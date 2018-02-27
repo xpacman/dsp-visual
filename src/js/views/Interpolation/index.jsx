@@ -5,8 +5,8 @@ import CanvasManager from '../../utils/CanvasManager';
 import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from '../../components';
 import {Stage, Layer, Rect, Line, Text, Group, Circle} from 'react-konva';
 import {max, min} from 'd3-array';
-import linear from 'linear-solve';
 import {arrayEquals} from '../../utils/utils';
+import InterpolationEngine from '../../utils/InterpolationEngine';
 import config from '../../config';
 import Konva from 'konva';
 
@@ -15,7 +15,7 @@ export default class Interpolation extends React.Component {
   constructor(props) {
     super(props);
     // Default input values
-    const inputValues = [[0, 1], [1, 2], [3, 6], [6, 9]];
+    const inputValues = [[0, 1], [1, 2], [3, 6], [6, 9], [8, 1], [9, 5], [10, 10]];
     this.state = {
       dropdowns: {
         inputValues: false,
@@ -97,6 +97,7 @@ export default class Interpolation extends React.Component {
 
   render() {
     const {dropdowns, inputValues, inputValid} = this.state;
+    InterpolationEngine.getNewtonInterpolationPolynomial([[-2, -39], [0, 3], [1, 6], [3, 36]]);
 
     const xTicks = {ticks: [], grid: [], tickRefs: []};
     const yTicks = {ticks: [], grid: []};

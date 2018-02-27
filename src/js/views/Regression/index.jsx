@@ -378,7 +378,8 @@ export default class Regression extends React.Component {
                   const bellow = this.canvasManager.yScale(point[1]) >= this.canvasManager.yScale(approxLineProps.points[index][1]);
 
                   // When function has raising trend, need to position squares differently
-                  const raising = inputValues[0][1] < approxLineProps.points[approxLineProps.points.length - 1][1];
+                  const nextIndex = index === approxLineProps.points.length - 1 ? index : index + 1;
+                  const raising = point[1] < approxLineProps.points[nextIndex][1];
                   if (raising) {
 
                     if (bellow) {

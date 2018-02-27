@@ -15,10 +15,9 @@ export default class RegressionEngine {
   static getLineApproximation(inputValues) {
     // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
-
     const ret = [];
-    inputValues.map((point) => ret.push([point[0], coef.line[0] * point[0] + coef.line[1]]));
 
+    inputValues.map((point) => ret.push([point[0], coef.line[0] * point[0] + coef.line[1]]));
     return ret;
   }
 
@@ -31,9 +30,10 @@ export default class RegressionEngine {
   static getParabolaApproximation(inputValues) {
     // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
-
     const ret = [];
-    inputValues.map((point) => ret.push([point[0], coef.parabola[0] + coef.parabola[1] * point[0] + coef.parabola[2] * Math.pow(point[0], 2)]));
+
+    inputValues.map(point =>
+      ret.push([point[0], coef.parabola[0] + coef.parabola[1] * point[0] + coef.parabola[2] * Math.pow(point[0], 2)]));
     return ret;
   }
 
@@ -46,10 +46,10 @@ export default class RegressionEngine {
   static getExponentialApproximation(inputValues) {
     // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
-
     const ret = [];
-    inputValues.map((point) => ret.push([point[0], Math.exp(coef.exponential[0]) * Math.exp(coef.exponential[1] * point[0])]));
 
+    inputValues.map(point =>
+      ret.push([point[0], Math.exp(coef.exponential[0]) * Math.exp(coef.exponential[1] * point[0])]));
     return ret;
   }
 
@@ -74,7 +74,8 @@ export default class RegressionEngine {
   static getParabolaEquation(inputValues, decimalPlaces = 4) {
     const coef = this.getCoefficients(inputValues);
 
-    return `y = ${coef.parabola[0].toFixed(decimalPlaces)} + ${coef.parabola[1].toFixed(decimalPlaces)}x + ${coef.parabola[2].toFixed(decimalPlaces)}x^2`;
+    return `y = ${coef.parabola[0].toFixed(decimalPlaces)} + ${coef.parabola[1].toFixed(decimalPlaces)}x +
+     ${coef.parabola[2].toFixed(decimalPlaces)}x^2`;
   }
 
   /**
@@ -98,10 +99,9 @@ export default class RegressionEngine {
   static getLineLeastSquares(inputValues) {
     // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
-
     let r2 = 0;
-    inputValues.map((point) => r2 += Math.pow(point[1] - (coef.line[1] + coef.line[0] * point[0]), 2));
 
+    inputValues.map(point => r2 += Math.pow(point[1] - (coef.line[1] + coef.line[0] * point[0]), 2));
     return r2;
   }
 
@@ -114,10 +114,11 @@ export default class RegressionEngine {
   static getParabolaLeastSquares(inputValues) {
     // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
-
     let r2 = 0;
-    inputValues.map((point) => r2 += Math.pow(point[1] - coef.parabola[0] - coef.parabola[1] * point[0] - coef.parabola[2] * Math.pow(point[0], 2), 2));
 
+    inputValues.map(point =>
+      r2 += Math.pow(point[1] - coef.parabola[0] - coef.parabola[1] * point[0] -
+        coef.parabola[2] * Math.pow(point[0], 2), 2));
     return r2;
   }
 
@@ -130,10 +131,10 @@ export default class RegressionEngine {
   static getExponentialLeastSquares(inputValues) {
     // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
-
     let r2 = 0;
-    inputValues.map((point) => r2 += point[1] * Math.pow(Math.log(point[1]) - coef.exponential[0] - coef.exponential[1] * point[0], 2));
 
+    inputValues.map(point =>
+      r2 += point[1] * Math.pow(Math.log(point[1]) - coef.exponential[0] - coef.exponential[1] * point[0], 2));
     return r2;
   }
 
@@ -149,16 +150,16 @@ export default class RegressionEngine {
       return false;
     }
 
-    let n = inputValues.length;
-    let xi = 0;
-    let yi = 0;
-    let xiPow = 0;
-    let xiPow_3 = 0;
-    let xiPow_4 = 0;
-    let xiyi = 0;
-    let xiPowYi = 0;
-    let xi_lnyi = 0;
-    let lnyi = 0;
+    let n = inputValues.length,
+      xi = 0,
+      yi = 0,
+      xiPow = 0,
+      xiPow_3 = 0,
+      xiPow_4 = 0,
+      xiyi = 0,
+      xiPowYi = 0,
+      xi_lnyi = 0,
+      lnyi = 0;
 
     inputValues.map((point) => {
       if (point.length !== 2) {
