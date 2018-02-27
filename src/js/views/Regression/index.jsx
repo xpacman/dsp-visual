@@ -15,7 +15,7 @@ export default class Regression extends React.Component {
   constructor(props) {
     super(props);
     // Default input values
-    const inputValues = [[0, 70], [140, 23], [250, 60], [300, 20]];
+    const inputValues = [[0, 1], [1, 2], [3, 6], [6, 9]];
     this.state = {
       dropdowns: {
         inputValues: false,
@@ -379,7 +379,7 @@ export default class Regression extends React.Component {
                   const bellow = this.canvasManager.yScale(point[1]) >= this.canvasManager.yScale(approxLineProps.points[index][1]);
 
                   // When function has raising trend, need to position squares differently
-                  const raising = this.canvasManager.yScale(point[1]) > this.canvasManager.yScale(approxLineProps.points[index][1]);
+                  const raising = inputValues[0][1] < approxLineProps.points[approxLineProps.points.length - 1][1];
                   if (raising) {
 
                     if (bellow) {
