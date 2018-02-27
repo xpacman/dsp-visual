@@ -39,7 +39,7 @@ export default class RegressionEngine {
 
   /**
    * Returns array of points approximated by exponential
-   * Equation => y = e^a+bx
+   * Equation => y = e^a * e^bx
    * @param inputValues [[x1, y1],...]
    * @return Array of arrays [[x1, y1], [x2, y2],....]
    */
@@ -48,7 +48,7 @@ export default class RegressionEngine {
     const coef = this.getCoefficients(inputValues);
 
     const ret = [];
-    inputValues.map((point) => ret.push([point[0], Math.exp(coef.exponential[0] + coef.exponential[1] * point[0])]));
+    inputValues.map((point) => ret.push([point[0], Math.exp(coef.exponential[0]) * Math.exp(coef.exponential[1] * point[0])]));
 
     return ret;
   }
@@ -86,12 +86,12 @@ export default class RegressionEngine {
   static getExponentialEquation(inputValues, decimalPlaces = 4) {
     const coef = this.getCoefficients(inputValues);
 
-    return `y = e^${coef.exponential[1].toFixed(decimalPlaces)}x + ${coef.exponential[0].toFixed(decimalPlaces)}`;
+    return `y = e^${coef.exponential[0].toFixed(decimalPlaces)} * e^${coef.exponential[1].toFixed(decimalPlaces)}x`;
   }
 
   /**
    * Returns sum of least squares areas approximated by line
-   * Equation => y = ax + b
+   * SUM (yi - (b + a * xi)^2
    * @param inputValues [[x1, y1],...]
    * @return float squares areas sum
    **/
@@ -100,14 +100,14 @@ export default class RegressionEngine {
     const coef = this.getCoefficients(inputValues);
 
     let r2 = 0;
-    inputValues.map((point) => r2 += Math.pow(point[1] - coef.line[1] - coef.line[0] * point[0], 2));
+    inputValues.map((point) => r2 += Math.pow(point[1] - (coef.line[1] + coef.line[0] * point[0]), 2));
 
     return r2;
   }
 
   /**
    * Returns sum of least squares areas approximated by parabola
-   * Equation => y = ax + b
+   * SUM (yi - a - b * xi - c * xi^2)^2
    * @param inputValues [[x1, y1],...]
    * @return float squares areas sum
    **/
@@ -123,7 +123,7 @@ export default class RegressionEngine {
 
   /**
    * Returns sum of least squares areas approximated by exponential
-   * Equation => y = ax + b
+   * SUM yi(ln(yi) - a - b * xi)^2
    * @param inputValues [[x1, y1],...]
    * @return float squares areas sum
    **/
@@ -132,7 +132,7 @@ export default class RegressionEngine {
     const coef = this.getCoefficients(inputValues);
 
     let r2 = 0;
-    inputValues.map((point) => r2 += Math.exp(coef.exponential[0] + coef.exponential[1] * point[0]) - point[1], 2);
+    inputValues.map((point) => r2 += point[1] * Math.pow(Math.log(point[1]) - coef.exponential[0] - coef.exponential[1] * point[0], 2));
 
     return r2;
   }
@@ -172,16 +172,16 @@ export default class RegressionEngine {
       yi += point[1];
       xiyi += point[1] * point[0];
       xiPowYi += point[1] * Math.pow(point[0], 2);
-      xi_lnyi += point[0] * Math.log2(point[1]);
-      lnyi += Math.log2(point[1]);
+      xi_lnyi += point[0] * Math.log(point[1]);
+      lnyi += Math.log(point[1]);
     });
 
     // Get coefficients
     const lineA = (xi * yi - n * xiyi) / (Math.pow(xi, 2) - n * xiPow);
     const lineB = (xi * xiyi - xiPow * yi) / (Math.pow(xi, 2) - n * xiPow);
     const parabolaCoef = linear.solve([[n, xi, xiPow], [xi, xiPow, xiPow_3], [xiPow, xiPow_3, xiPow_4]], [yi, xiyi, xiPowYi]);
-    const exponentialB = (n * xi_lnyi - xi * lnyi) / (n * xiPow - (Math.pow(xi, 2)));
-    const exponentialA = (Math.log2(yi) / n) - ((exponentialB * xi) / n);
+    const exponentialB = (n * xi_lnyi - xi * lnyi) / (n * xiPow - Math.pow(xi, 2));
+    const exponentialA = (lnyi * xiPow - xi * xi_lnyi) / (n * xiPow - Math.pow(xi, 2));
 
     return {
       line: [lineA, lineB],

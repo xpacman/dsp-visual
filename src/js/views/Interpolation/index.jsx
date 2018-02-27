@@ -15,7 +15,7 @@ export default class Interpolation extends React.Component {
   constructor(props) {
     super(props);
     // Default input values
-    const inputValues = [0, 1, 1, 0, 2, 7, 3, 5, 5, 0];
+    const inputValues = [[0, 1], [1, 2], [3, 6], [6, 9]];
     this.state = {
       dropdowns: {
         inputValues: false,
@@ -65,13 +65,12 @@ export default class Interpolation extends React.Component {
    */
   rescale(data) {
     this.canvasManager.dimensions = [this.chartWrapper.offsetWidth, this.chartWrapper.offsetHeight];
-    const splitPoints = this.splitPoints(data);
     // Minimum and maximum of X from input values
-    this.canvasManager.xDomain = [min(splitPoints.xPoints.map((d) => d)), max(splitPoints.xPoints.map((d) => Math.abs(d)))];
+    this.canvasManager.xDomain = [min(data.map((d) => d[0])), max(data.map((d) => Math.abs(d[0])))];
     // From left edge to right edge minus space for axis
     this.canvasManager.xRange = [0, this.canvasManager.dimensions[0] - this.chartMargins[1]];
     // From zero to max Y point value
-    this.canvasManager.yDomain = [0, max(splitPoints.yPoints.map((d) => Math.abs(d)))];
+    this.canvasManager.yDomain = [0, max(data.map((d) => Math.abs(d[1])))];
     // From bottom edge to top edge
     this.canvasManager.yRange = [this.canvasManager.dimensions[1] - this.chartMargins[2], 0];
     this.canvasManager.rescale();
@@ -83,45 +82,26 @@ export default class Interpolation extends React.Component {
   }
 
   /**
-   * Split input values into two arrays of x and y values, places them inside an object and returns this object
-   * @param inputValues array of input values
-   * @return object of two arrays x and y points
+   * Returns points for konva [x1, y1, x2, y2] (flattens an array of input values and scales them for canvas)
+   * @param inputValues Array of arrays [[x1, y1],...]
+   * @return {Array}
    */
-  splitPoints(inputValues) {
-    const points = {xPoints: [], yPoints: []};
-    inputValues.map((value, index) => {
-      if (index % 2 === 0) {
-        // Even value is x value
-        points.xPoints.push(value);
-      } else {
-        points.yPoints.push(value);
-      }
-    });
-    return points;
-  }
-
-  getPoints(inputValues, xScale, yScale) {
+  getPoints(inputValues) {
     const points = [];
-    inputValues.map((value, index) => {
-      // Even -> x value
-      if (index % 2 === 0) {
-        points.push(xScale(value))
-      } else {
-        points.push(yScale(value))
-      }
+    inputValues.map((point) => {
+      points.push(this.canvasManager.xScale(point[0]));
+      points.push(this.canvasManager.yScale(point[1]))
     });
     return points;
   }
 
   render() {
     const {dropdowns, inputValues, inputValid} = this.state;
-    // Recalculated points from input values
-    let points = [];
+
     const xTicks = {ticks: [], grid: [], tickRefs: []};
     const yTicks = {ticks: [], grid: []};
-    if (this.chartWrapper !== null) {
-      points = this.getPoints(inputValues, this.canvasManager.xScale, this.canvasManager.yScale);
 
+    if (this.chartWrapper !== null) {
       // Prepare ticks and grid for render (grid will be on separate layer, so split them right now instead of iterating through ticks twice)
       this.canvasManager.xScale.ticks(10).map((tick, index) => {
         const xPos = this.canvasManager.xScale(tick) + this.xTickMargins[1];
@@ -138,7 +118,7 @@ export default class Interpolation extends React.Component {
                                {...config.axisTickLine}
         />);
       });
-      // Remove last tick and line (its renundant)
+      // Remove last tick and line (its redundant)
       xTicks.grid.pop();
       xTicks.ticks.pop();
 
@@ -157,7 +137,7 @@ export default class Interpolation extends React.Component {
         />);
       })
     }
-    // Remove first tick and line (its renundant)
+    // Remove first tick and line (its redundant)
     yTicks.grid.shift();
     yTicks.ticks.shift();
 
@@ -167,14 +147,17 @@ export default class Interpolation extends React.Component {
              // Crosshairs handling
              if (this.crosshairsLayer !== null && this.stage !== null) {
                const cursorPosition = this.stage.getStage().getPointerPosition();
+
                if (cursorPosition) {
                  const dimensionsWithMargins = [this.canvasManager.dimensions[0] - this.chartMargins[1] - this.chartMargins[3], this.canvasManager.dimensions[1] - this.chartMargins[2]];
                  if (cursorPosition.x > dimensionsWithMargins[0]) {
                    cursorPosition.x = dimensionsWithMargins[0]
                  }
+
                  if (cursorPosition.y > dimensionsWithMargins[1]) {
                    cursorPosition.y = dimensionsWithMargins[1]
                  }
+
                  // Crosshair line and text are grouped for synchronized moving
                  const xCrosshairGroup = this.crosshairsLayer.getChildren()[0];
                  const yCrosshairGroup = this.crosshairsLayer.getChildren()[1];
@@ -190,20 +173,22 @@ export default class Interpolation extends React.Component {
                    // Crosshair is overlapping tick -> hide tick
                    if (tick.props.x >= cursorPosition.x - 30 && tick.props.x <= cursorPosition.x + 40) {
                      xTicks.tickRefs[index].visible(false);
-                   } else {
+                   }
+
+                   else {
                      xTicks.tickRefs[index].visible(true);
                    }
                  });
+
                  this.axisLayer.batchDraw();
                }
              }
            }}>
         <TopOptionsBar>
-          <div>
-            <TopOptionsBarItem className={"ml-4"}>
-              Menu Item
-            </TopOptionsBarItem>
-          </div>
+          <TopOptionsBarItem className={"ml-4"}>
+            Menu Item
+          </TopOptionsBarItem>
+
           <TopOptionsBarDropdownItem toggle={this.toggleDropdown.bind(this, "inputValues")}
                                      isOpen={dropdowns.inputValues}
                                      dropdownMenuClass={`${styles.inputValuesDropdown} ${!inputValid ? styles.invalidInput : ""}`}
@@ -215,23 +200,37 @@ export default class Interpolation extends React.Component {
                      defaultValue={inputValues.join()}
                      onChange={(event) => this.inputValues.value = event.target.value}
                      onBlur={() => {
-                       const values = this.inputValues.value.split(",").map((item) => {
-                         return parseFloat(item, 10)
-                       });
-                       // Wrong count of values
-                       if (values.length % 2 !== 0 || values.length < 4 || values.find((element) => isNaN(element)) !== undefined) {
-                         this.setState({inputValid: false});
-                       } else {
-                         this.setState({inputValues: values, inputValid: true});
+                       // Because we are processing points as array of arrays in our engine [[x1, y1],...]
+                       // we need to make this array of arrays from string input
+                       const input = this.inputValues.value.split(",");
+
+                       // Check count of the values
+                       if (input.length % 2 === 0 && input.length >= 4) {
+
+                         const values = [];
+                         input.map((item, index) => {
+                           if (index % 2 === 0) {
+                             values.push([parseFloat(item, 10), parseFloat(input[index + 1], 10)])
+                           }
+                         });
+
+                         // All is good => set values to state
+                         if (values.find((element) => isNaN(element[0]) || isNaN(element[1])) === undefined) {
+                           this.setState({inputValues: values, inputValid: true});
+                           return true;
+                         }
+
                        }
+
+                       this.setState({inputValid: false});
+                       return 0;
                      }}
               />
             </InputGroup>
           </TopOptionsBarDropdownItem>
         </TopOptionsBar>
-        <div id="regression-chart-wrapper" ref={(elem) => {
-          this.chartWrapper = elem
-        }} className="h-100 w-100">
+
+        <div id="regression-chart-wrapper" ref={(elem) => this.chartWrapper = elem} className="h-100 w-100">
           <Stage ref={(stage) => this.stage = stage}
                  width={this.canvasManager.dimensions[0]}
                  height={this.canvasManager.dimensions[1]}>
@@ -239,6 +238,7 @@ export default class Interpolation extends React.Component {
               {xTicks.grid}
               {yTicks.grid}
             </Layer>
+
             <Layer ref={(layer) => this.crosshairsLayer = layer}>
               <Group x={0}
                      y={0}>
@@ -265,19 +265,21 @@ export default class Interpolation extends React.Component {
                 />
               </Group>
             </Layer>
+
             <Layer ref={(layer) => this.pointsLayer = layer}>
               {
-                points.map((point, index) => {
-                  if (index % 2 === 0) {
-                    return <Group key={index} x={point} y={points[index + 1]}>
+                inputValues.map((point, index) => {
+                  return (
+                    <Group key={index} x={this.canvasManager.xScale(point[0])} y={this.canvasManager.yScale(point[1])}>
                       <Line points={[-10, 0, 10, 0]} {...config.pointCross}/>
                       <Line points={[0, -10, 0, 10]}{...config.pointCross}/>
                       <Circle {...config.pointCircle} x={0} y={0}/>
                     </Group>
-                  }
+                  );
                 })
               }
             </Layer>
+
             <Layer ref={(layer) => this.axisLayer = layer}>
               <Rect {...config.axisBackground} x={this.canvasManager.dimensions[0] - this.chartMargins[1]} y={0}
                     width={this.chartMargins[1]} height={this.canvasManager.dimensions[1] - this.chartMargins[2]}/>

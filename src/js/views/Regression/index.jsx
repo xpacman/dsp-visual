@@ -28,7 +28,6 @@ export default class Regression extends React.Component {
     };
 
     this.canvasManager = new CanvasManager(); // This class holds information about canvas size, scales etc...
-    this.approximationResults = {}; // Approximations will be placed here
     this.chartMargins = [0, 75, 100, 0]; // Margins top, right, bottom, left, right and bottom are greater because we need leave space for axes
     this.xTickMargins = [20, 0];
     this.yTickMargins = [0, 20];
@@ -121,7 +120,7 @@ export default class Regression extends React.Component {
                                {...config.axisTickLine}
         />);
       });
-      // Remove last tick and line (its renundant)
+      // Remove last tick and line (its redundant)
       xTicks.grid.pop();
       xTicks.ticks.pop();
 
