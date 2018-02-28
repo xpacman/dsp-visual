@@ -97,7 +97,13 @@ export default class Interpolation extends React.Component {
 
   render() {
     const {dropdowns, inputValues, inputValid} = this.state;
-    InterpolationEngine.getNewtonInterpolationPolynomial([[-2, -39], [0, 3], [1, 6], [3, 36]]);
+    const inter = InterpolationEngine.getNewtonInterpolation(inputValues, ((frequency = 0.1) => {
+      const ret = [];
+      for (let i = this.canvasManager.xDomain[0]; i <= this.canvasManager.xDomain[1] / frequency; i++) {
+        ret.push(frequency * i);
+      }
+      return ret;
+    })());
 
     const xTicks = {ticks: [], grid: [], tickRefs: []};
     const yTicks = {ticks: [], grid: []};
@@ -279,6 +285,7 @@ export default class Interpolation extends React.Component {
                   );
                 })
               }
+              <Line {...config.approximationLine} points={this.getPoints(inter)}/>
             </Layer>
 
             <Layer ref={(layer) => this.axisLayer = layer}>
