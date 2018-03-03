@@ -32,9 +32,11 @@ module.exports = {
     radius: 3,
     fill: "red"
   },
-  approximationLine: {
+  signalLine: {
     stroke: "green",
-    strokeWidth: 3
+    strokeWidth: 3,
+    lineCap: "round",
+    lineJoin: "round"
   },
   leastSquares: {
     stroke: "red",

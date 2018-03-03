@@ -2,96 +2,216 @@
  * Created by paco on 27.2.18.
  */
 
-
 export default class InterpolationEngine {
 
   /**
-   * Method will calculate Newton interpolation for given array of x values and returns result as array or as a number
-   * if only one point is given
-   * @param inputValues Array of arrays (input points) [ [x1, y1], [x2, y2],... ]
-   * @param xValues Array || Number X value(s) to calculate interpolation for
-   * @return {*} Array of interpolated points [ [x, interpolationResult],... ]
+   * Method will split input values given as array of arrays [[x1, y1],...] into two separate arrays of x and y values
+   * Interpolation methods works with these
+   * @param inputValues Array of arrays [[x1, y1],...]
+   * @return {[*,*]} Array [x array, y array]
    */
-  static getNewtonInterpolation(inputValues, xValues) {
-    // We always need almost two points for interpolation
-    if (inputValues.length < 2) {
-      return false;
-    }
-
-    // If user entered only one number to calculate interpolation for, make array from it but first check if its a number
-    if (!Array.isArray(xValues)) {
-
-      if (isNaN(xValues)) {
-        return false
-      }
-
-      xValues = [xValues];
-    }
-
-    // getDifferences method works with separated x and y values so extract them from input values
-    const xInputValues = [],
-      fXInputValues = [];
+  static splitPoints(inputValues) {
+    const x = [],
+      fx = [];
 
     inputValues.map(point => {
-      xInputValues.push(point[0]);
-      fXInputValues.push(point[1]);
+      x.push(parseFloat(point[0]));
+      fx.push(parseFloat(point[1]));
     });
+    return [x, fx];
+  }
 
-    const differences = this.getDifferences(xInputValues, fXInputValues),
-      ret = [];
+  /**
+   * Returns zero order (stair) interpolation from input values (signal [[x1, y1],...])
+   * @param inputValues Array of signal points [[x1, y1],...]
+   * @return {Array} of interpolated points [[x1, y1],...]
+   */
+  static getZeroOrderHoldInterpolation(inputValues) {
+    const ret = [];
 
-    // Calculate interpolation for each x point
-    // P(x) = a0 + a1 * (x - x0) + a2 * (x - x0)*(x - x1) + a3 * (x - x0)*(x - x1)*(x - x2),...an * (x - x0)*...(x - xn-1)
-    xValues.map(xValue => {
-      // fXValues[0] is the zero level ratio difference coefficient (a0)
-      let result = fXInputValues[0];
+    inputValues.map((point, index) => {
+      ret.push([point[0], point[1]]);
 
-      for (let i = 0; i < differences.length; i++) {
-        let step = differences[i];
-
-        for (let y = 0; y <= i; y++)
-          step *= (xValue - xInputValues[y])
-
-        // Step by step... :)
-        result += step;
+      if (inputValues[index + 1] !== undefined) {
+        ret.push([inputValues[index + 1][0], point[1]]);
       }
-
-      // Push result point [x, interpolationValue]
-      ret.push([xValue, result]);
     });
 
     return ret;
   }
 
   /**
-   * Returns array (table) of ratio differences used for Newton Polynomial Interpolation
-   * Function will recursively iterate through input x and f(x) values and builds array (table) of differences up to
-   * point count - 1. So for example, for 4 input points [x, fx] we will get table of up to 3rd level differences.
-   * For example first level ratio difference is calculated like f[xi, xi+1] = (f(xi+1) - f(xi)) / (xi+1 - xi)
-   * @param xValues Array of x values [x1, x2,...]
-   * @param fXValues Array of f(x) values [f(x1), f(x2),...]
-   * @param differences Array (optional) ratio differences are stored here across recursive function calls
-   * @param level int (optional) level of current ratio difference
-   * @return {*} Array [[1 level ratio difference coefficient (a1)], [2 level ratio difference coefficient (a2)],...]
+   * Method will calculate Newton interpolation for given array of x values and returns result as array
+   * @param inputValues Array of arrays (input points) [ [x1, y1], [x2, y2],... ] to calculate interpolation polynomial from
+   * @param interpolatedPoints Array || Number X value(s) to calculate interpolation for
+   * @return {*} Array of interpolated points [ [x, interpolationResult],... ]
    */
-  static getDifferences(xValues, fXValues, differences = [], level = 0) {
-
-    // If there is only one f(x) value, we are on the end -> return array of ratio difference coefficients
-    if (fXValues.length === 1) {
-      return differences;
+  static newtonInterpolation(inputValues, interpolatedPoints) {
+    // We always need almost two points for interpolation
+    if (inputValues.length < 2) {
+      return false;
     }
 
-    // Differences of the current level
-    const difference = [];
+    // If user entered only one number to calculate interpolation for, make array from it
+    if (!Array.isArray(interpolatedPoints)) {
+      interpolatedPoints = [parseFloat(interpolatedPoints)];
+    }
 
-    for (let row = 0; row < fXValues.length - 1; row++)
-      // For example first level difference is => f[xi, xi+1] = (f(xi+1) - f(xi)) / (xi+1 - xi)
-      difference.push((fXValues[row + 1] - fXValues[row]) / (xValues[row + 1 + level] - xValues[row]));
+    // getNewtonPoly method works with separated x and y values so extract them from input values
+    const splitPoints = this.splitPoints(inputValues),
+      poly = this.getNewtonPoly(splitPoints[0], splitPoints[1]),
+      ret = [];
 
-    // Push current level ratio difference to the table (array). We want only first index because that is the coefficient.
-    differences.push(difference[0]);
-    // We are about to move to next level differences -> increment
-    level++;
-    return this.getDifferences(xValues, difference, differences, level)
+    // Calculate interpolation for each x point
+    // P(x) = a0 + a1 * (x - x0) + a2 * (x - x0)*(x - x1) + a3 * (x - x0)*(x - x1)*(x - x2),...an * (x - x0)*...(x - xn-1)
+    interpolatedPoints.map(xValue =>
+      // Push result point [x, interpolationValue]
+      ret.push([xValue, poly.solve(xValue)])
+    );
+
+    return ret;
+  }
+
+  /**
+   * Will return string representation of Newton Interpolation Polynomial
+   * @param inputValues Array of arrays [[x1, y1],...]
+   * @return {*} Array
+   */
+  static getNewtonPolyEquation(inputValues) {
+    if (inputValues.length < 2) {
+      return false;
+    }
+
+    const splitPoints = this.splitPoints(inputValues);
+
+    return this.getNewtonPoly(splitPoints[0], splitPoints[1]).toString()
+  }
+
+  /**
+   * Returns Polynomial (Poly class) with ratio differences as coefficients
+   * @param xValues Array of x values [x1, x2,...]
+   * @param fXValues Array of f(x) values [f(x1), f(x2),...]
+   * @return {Poly}
+   */
+  static getNewtonPoly(xValues, fXValues) {
+
+    const parseNum = (v) => parseFloat(v),
+      n = Math.min(xValues.length, fXValues.length),
+      diff = [];
+    xValues = xValues.map(parseNum);
+    fXValues = fXValues.map(parseNum);
+
+    // Iterate through input x and f(x) values and builds array (table) of ratio differences for polynomial construction
+    for (let i = 0; i < n; i++) {
+      diff[i] = fXValues[0];
+      for (let j = 1; j < n - i; j++)
+        // For example first level ratio difference is calculated like f[xi, xi+1] = (f(xi+1) - f(xi)) / (xi+1 - xi)
+        fXValues[j - 1] = parseFloat(((fXValues[j] - fXValues[j - 1]) / (xValues[j + i] - xValues[j - 1])).toFixed(7));
+    }
+
+    let newtonPoly = [new Poly(diff[0])];
+    for (let i = 1; i < diff.length; i++) {
+      const pairs = [diff[i]];
+      for (let j = 0; j < i; j++) {
+        pairs.push([-xValues[j], 1]);
+      }
+      newtonPoly.push(Poly.multiply.apply(undefined, pairs));
+    }
+
+    return new Poly(newtonPoly);
+  }
+
+}
+
+/**
+ * Class representing polynomial, supports multiplication
+ */
+class Poly {
+
+  constructor(coeff) {
+    this.coeff = !(coeff instanceof Array) ? Array.prototype.slice.call(arguments) : coeff;
+    this.length = this.coeff.length;
+    this.multiply = function (poly) {
+      if (!poly) return this;
+
+      const totalLength = this.coeff.length + poly.coeff.length - 1,
+        result = new Array(totalLength);
+
+      for (let i = 0; i < result.length; i++)
+        result[i] = 0;
+
+      for (let i = 0; i < this.coeff.length; i++) {
+        for (let j = 0; j < poly.coeff.length; j++) {
+          result[i + j] += this.coeff[i] * poly.coeff[j];
+        }
+      }
+      return new Poly(result);
+    }
+  }
+
+  /**
+   * Will make binomials from arguments and multiplies them recursively
+   * @return {undefined}
+   */
+  static multiply() {
+    let args = Array.prototype.slice.call(arguments),
+      result = undefined;
+
+    for (let i = 0; i < args.length; i++) {
+      if (!(args[i] instanceof Poly))
+        args[i] = new Poly(args[i]);
+
+      result = args[i].multiply(result);
+    }
+    return result;
+  };
+
+  /**
+   * Solves polynomial for x value
+   * @param x number X value to solve polynomial for
+   * @return {number}
+   */
+  solve(x) {
+    let multiStr = [],
+      ret = 0;
+    for (let i = this.coeff.length - 1; i >= 0; i--) {
+      for (let j = this.coeff[i].length - 1; j >= 0; j--) {
+        if (!multiStr[j]) {
+          multiStr[j * 2] = 0;
+          multiStr[j * 2 + 1] = j.toFixed(1);
+        }
+        multiStr[j * 2] += this.coeff[i].coeff[j];
+      }
+    }
+
+    for (let i = 0; i < this.coeff.length; i++) {
+      ret += multiStr[i * 2] * Math.pow(x, parseFloat(multiStr[i * 2 + 1]));
+    }
+    return ret
+  }
+
+  /**
+   * Will return string interpretation of polynomial in final form
+   * @return {string}
+   */
+  toString() {
+    let multiStr = [];
+    for (let i = this.coeff.length - 1; i >= 0; i--) {
+      for (let j = this.coeff[i].length - 1; j >= 0; j--) {
+        if (!multiStr[j]) {
+          multiStr[j * 2] = 0;
+          multiStr[j * 2 + 1] = ( (j !== 0 ? " x" : "") + (j !== 1 && j !== 0 ? "<sup>" + j + "</sup>" : "") ) + " +";
+        }
+        multiStr[j * 2] += this.coeff[i].coeff[j];
+      }
+    }
+
+    for (let i = multiStr.length - 2; i >= 0; i -= 2) {
+      multiStr[i] = parseFloat(multiStr[i].toFixed(7));
+      if (multiStr[i + 2] < 0 || !multiStr[i + 2])
+        multiStr[i + 1] = multiStr[i + 1].replace(/\+\s?$/, '');
+    }
+
+    return multiStr.join('').replace(/([\-\+])/g, ' $1 ')
   }
 }

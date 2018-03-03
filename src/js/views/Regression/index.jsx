@@ -144,7 +144,7 @@ export default class Regression extends React.Component {
     yTicks.ticks.shift();
 
     let approxLineProps = {
-      ...config.approximationLine
+      ...config.signalLine
     };
 
     let approxLabel = "";
@@ -159,9 +159,7 @@ export default class Regression extends React.Component {
         approxLineProps = {
           ...approxLineProps,
           points: RegressionEngine.getLineApproximation(inputValues),
-          tension: 0.1,
-          lineCap: 'round',
-          lineJoin: 'round',
+          tension: 0.1
         };
         break;
       case 'parabola':
@@ -171,9 +169,7 @@ export default class Regression extends React.Component {
         approxLineProps = {
           ...approxLineProps,
           points: RegressionEngine.getParabolaApproximation(inputValues),
-          tension: 0.3,
-          lineCap: 'round',
-          lineJoin: 'round',
+          tension: 0.3
         };
         break;
       case 'exponential':
@@ -183,9 +179,7 @@ export default class Regression extends React.Component {
         approxLineProps = {
           ...approxLineProps,
           points: RegressionEngine.getExponentialApproximation(inputValues),
-          tension: 0.3,
-          lineCap: 'round',
-          lineJoin: 'round',
+          tension: 0.3
         };
         break;
       default:
