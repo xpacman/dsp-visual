@@ -120,9 +120,6 @@ export default class Interpolation extends React.Component {
                                {...config.axisTickLine}
         />);
       });
-      // Remove last tick and line (its redundant)
-      xTicks.grid.pop();
-      xTicks.ticks.pop();
 
       this.canvasManager.yScale.ticks(10).map((tick, index) => {
         const xPos = this.canvasManager.dimensions[0] - this.chartMargins[1] + this.yTickMargins[1];

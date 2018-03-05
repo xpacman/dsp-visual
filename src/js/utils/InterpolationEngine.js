@@ -22,6 +22,20 @@ export default class InterpolationEngine {
   }
 
   /**
+   * Will sample signal using frequency given and returns array of x positions of samples
+   * @param frequency Number sampling frequency
+   * @param min Number signal min x range
+   * @param max Number signal max x range
+   * @return {Array} Array of x positions of samples
+   */
+  static getSamplePositions(frequency = 0.1, min = 0, max = 10) {
+    const ret = [];
+    for (let i = min; i <= max / frequency; i++)
+      ret.push(i * frequency);
+    return ret
+  }
+
+  /**
    * Returns zero order (stair) interpolation from input values (signal [[x1, y1],...])
    * @param inputValues Array of signal points [[x1, y1],...]
    * @return {Array} of interpolated points [[x1, y1],...]
@@ -178,7 +192,7 @@ class Poly {
       for (let j = this.coeff[i].length - 1; j >= 0; j--) {
         if (!multiStr[j]) {
           multiStr[j * 2] = 0;
-          multiStr[j * 2 + 1] = j.toFixed(1);
+          multiStr[j * 2 + 1] = j.toFixed(1); // as string !important
         }
         multiStr[j * 2] += this.coeff[i].coeff[j];
       }
