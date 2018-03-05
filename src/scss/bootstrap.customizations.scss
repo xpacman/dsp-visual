@@ -1,0 +1,12 @@
+@import "~variables";
+
+body {
+  background: $body-bg;
+  color: white;
+}
+
+.main-container {
+  border: 1px solid $border-color;
+  padding: 20px;
+  max-width: 600px;
+}

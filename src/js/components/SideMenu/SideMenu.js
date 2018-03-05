@@ -2,19 +2,14 @@
  * Created by paco on 16.10.17.
  */
 
-import React from 'react';
-import PropTypes from 'prop-types';
-import {
-  Nav,
-  NavItem,
-  NavLink,
-  Tooltip
-} from 'reactstrap';
-import routes from '../../routes';
-import {Link} from 'react-router-dom';
-import {connect} from 'react-redux';
-import * as actions from '../../actions/actions';
-import styles from './SideMenu.scss'; // To include in bundle
+import React from "react";
+import PropTypes from "prop-types";
+import {Nav, NavItem} from "reactstrap";
+import routes from "../../routes";
+import {Link} from "react-router-dom";
+import {connect} from "react-redux";
+import * as actions from "../../actions/actions";
+import styles from "./SideMenu.scss"; // To include in bundle
 
 @connect(state => ({
   collapsed: state.sideMenu.collapsed,
@@ -51,27 +46,12 @@ export default class SideMenu extends React.Component {
             return (
               <NavItem key={i}
                        className={`${styles.sideMenu__item} ${route.slug === activePath ? styles["sideMenu__item--active"] : ""}`}>
-                {collapsed ?
-                  <Link id={`sideMenu__item-${i}`} className={`${styles.sideMenu__item__link }`}
-                        to={route.slug}>{route.short}</Link>
-                  :
-                  <Link id={`sideMenu__item-${i}`} className={`${styles.sideMenu__item__link }`}
-                        to={route.slug}>{route.title}</Link>
-                }
+                <Link id={`sideMenu__item-${i}`} className={`${styles.sideMenu__item__link }`}
+                      to={route.slug}>{route.short}</Link>
               </NavItem>
             );
           })
         }
-        <NavItem className={`${styles.sideMenu__item} ${styles["sideMenu__item--menuToggleArrow"]}`}>
-          <NavLink className={`${styles.sideMenu__item__link }`} onClick={null}>
-            {
-              collapsed ?
-                <span> </span>
-                :
-                <span>🡐</span>
-            }
-          </NavLink>
-        </NavItem>
       </Nav>
     )
   }

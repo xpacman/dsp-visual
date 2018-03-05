@@ -1,21 +1,24 @@
-import React from 'react';
-import {Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Label, InputGroup, Input, FormGroup} from 'reactstrap';
-import styles from './regression.scss';
-import CanvasManager from '../../utils/CanvasManager';
-import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from '../../components'
-import {Stage, Layer, Rect, Line, Text, Group, Circle} from 'react-konva';
-import {max, min} from 'd3-array';
-import RegressionEngine from '../../utils/RegressionEngine';
-import {arrayEquals} from '../../utils/utils';
-import config from '../../config';
-import Konva from 'konva';
+import React from "react";
+import {
+  DropdownItem,
+  DropdownMenu, DropdownToggle, FormGroup, Input, Label, Nav, Navbar, NavItem,
+  UncontrolledDropdown
+} from "reactstrap";
+import styles from "./regression.scss";
+import CanvasManager from "../../utils/CanvasManager";
+import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from "../../components";
+import {Circle, Group, Layer, Line, Rect, Stage, Text} from "react-konva";
+import {max, min} from "d3-array";
+import RegressionEngine from "../../utils/RegressionEngine";
+import {arrayEquals} from "../../utils/utils";
+import config from "../../config";
 
 
 export default class Regression extends React.Component {
   constructor(props) {
     super(props);
     // Default input values
-    const inputValues = [[0, 1], [1, 2], [3, 6], [6, 9]];
+    const inputValues = [[0, 1], [1, 2], [3, 6], [6, 5]];
     this.state = {
       dropdowns: {
         inputValues: false,
@@ -28,7 +31,8 @@ export default class Regression extends React.Component {
     };
 
     this.canvasManager = new CanvasManager(); // This class holds information about canvas size, scales etc...
-    this.chartMargins = [0, 75, 100, 0]; // Margins top, right, bottom, left, right and bottom are greater because we need leave space for axes
+    this.approximationResults = {}; // Approximations will be placed here
+    this.chartMargins = [0, 75, 65, 0]; // Margins top, right, bottom, left, right and bottom are greater because we need leave space for axes
     this.xTickMargins = [20, 0];
     this.yTickMargins = [0, 20];
     this.inputValues = null; // Input values ref
@@ -83,6 +87,10 @@ export default class Regression extends React.Component {
     this.setState({dropdowns: {...this.state.dropdowns, [dropdown]: !this.state.dropdowns[dropdown]}})
   }
 
+  selectApproximation(approximation) {
+    this.setState({selectedApproximation: approximation})
+  }
+
   /**
    * Returns points for konva [x1, y1, x2, y2] (flattens an array of input values and scales them for canvas)
    * @param inputValues Array of arrays [[x1, y1],...]
@@ -99,7 +107,6 @@ export default class Regression extends React.Component {
 
   render() {
     const {dropdowns, inputValues, selectedApproximation, displayLeastSquares, inputValid} = this.state;
-
     const xTicks = {ticks: [], grid: [], tickRefs: []};
     const yTicks = {ticks: [], grid: []};
 
@@ -192,17 +199,14 @@ export default class Regression extends React.Component {
              // Crosshairs handling
              if (this.crosshairsLayer !== null && this.stage !== null) {
                const cursorPosition = this.stage.getStage().getPointerPosition();
-
                if (cursorPosition) {
                  const dimensionsWithMargins = [this.canvasManager.dimensions[0] - this.chartMargins[1] - this.chartMargins[3], this.canvasManager.dimensions[1] - this.chartMargins[2]];
                  if (cursorPosition.x > dimensionsWithMargins[0]) {
                    cursorPosition.x = dimensionsWithMargins[0]
                  }
-
                  if (cursorPosition.y > dimensionsWithMargins[1]) {
                    cursorPosition.y = dimensionsWithMargins[1]
                  }
-
                  // Crosshair line and text are grouped for synchronized moving
                  const xCrosshairGroup = this.crosshairsLayer.getChildren()[0];
                  const yCrosshairGroup = this.crosshairsLayer.getChildren()[1];
@@ -218,114 +222,105 @@ export default class Regression extends React.Component {
                    // Crosshair is overlapping tick -> hide tick
                    if (tick.props.x >= cursorPosition.x - 30 && tick.props.x <= cursorPosition.x + 40) {
                      xTicks.tickRefs[index].visible(false);
-                   }
-
-                   else {
+                   } else {
                      xTicks.tickRefs[index].visible(true);
                    }
                  });
-
                  this.axisLayer.batchDraw();
                }
              }
            }}>
-        <TopOptionsBar>
-          <div>
-            <TopOptionsBarDropdownItem toggle={this.toggleDropdown.bind(this, "approximation")}
-                                       isOpen={dropdowns.approximation}
-                                       dropdownClass={styles.divider}
-                                       dropdownMenuClass={"pl-2"}
-                                       dropdownToggleText={`Aproximace ${approxLabel}`}>
-              <FormGroup check>
-                <Label check>
-                  <Input type="radio" checked={selectedApproximation === "line"}
-                         onChange={(event) => this.setState({selectedApproximation: event.target.name})}
-                         name="line"/>{' '}
+        <Navbar dark className={styles.navbar}>
+          <Nav>
+            <UncontrolledDropdown nav inNavbar
+                                  className="d-inline-flex align-items-center px-3"
+                                  isOpen={dropdowns.approximation}
+                                  toggle={this.toggleDropdown.bind(this, "approximation")}>
+              <DropdownToggle nav caret>
+                Aproximace {`${approxLabel}`}
+              </DropdownToggle>
+              <DropdownMenu >
+                <DropdownItem onClick={this.selectApproximation.bind(this, "line")}>
                   Přímka
-                </Label>
-              </FormGroup>
-
-              <FormGroup check>
-                <Label check>
-                  <Input type="radio" checked={selectedApproximation === "parabola"}
-                         onChange={(event) => this.setState({selectedApproximation: event.target.name})}
-                         name="parabola"/>{' '}
+                </DropdownItem>
+                <DropdownItem onClick={this.selectApproximation.bind(this, "parabola")}>
                   Parabola
-                </Label>
-              </FormGroup>
-
-              <FormGroup check>
-                <Label check>
-                  <Input type="radio" checked={selectedApproximation === "exponential"}
-                         onChange={(event) => this.setState({selectedApproximation: event.target.name})}
-                         name="exponential"/>{' '}
+                </DropdownItem>
+                <DropdownItem onClick={this.selectApproximation.bind(this, "exponential")}>
                   Exponenciála
-                </Label>
-              </FormGroup>
-            </TopOptionsBarDropdownItem>
+                </DropdownItem>
+              </DropdownMenu>
+            </UncontrolledDropdown>
 
-            <TopOptionsBarItem className={`ml-4 ${styles.divider}`}>
-              <FormGroup check>
-                <Label check>
-                  <Input checked={displayLeastSquares}
-                         onChange={() => this.setState({displayLeastSquares: !displayLeastSquares})}
-                         type="checkbox"/>{' '}
-                  Zobrazovat nejmenší čtverce
-                </Label>
-              </FormGroup>
-            </TopOptionsBarItem>
+            <FormGroup check
+                       className="d-inline-flex align-items-center px-3">
+              <Label check>
+                <Input checked={displayLeastSquares}
+                       onChange={() => this.setState({displayLeastSquares: !displayLeastSquares})}
+                       type="checkbox"/>{' '}
+                Zobrazovat nejmenší čtverce
+              </Label>
+            </FormGroup>
 
-            <TopOptionsBarItem className={`ml-4 ${styles.divider}`}>
+            <NavItem className="d-inline-flex align-items-center px-3">
               {equation}
-            </TopOptionsBarItem>
+            </NavItem>
 
-            <TopOptionsBarItem className={"ml-4"}>
-              p^2 = {leastSquares.toFixed(3)}
-            </TopOptionsBarItem>
-          </div>
+            <NavItem className="d-inline-flex align-items-center px-3">
+              p<sup>2</sup> = {leastSquares.toFixed(3)}
+            </NavItem>
 
-          <TopOptionsBarDropdownItem toggle={this.toggleDropdown.bind(this, "inputValues")}
-                                     isOpen={dropdowns.inputValues}
-                                     dropdownMenuClass={`${styles.inputValuesDropdown} ${!inputValid ? styles.invalidInput : ""}`}
-                                     dropdownToggleText={`Vstupní hodnoty`}>
-            <InputGroup>
-              <Input placeholder="x1, y1, x2, y2,..."
-                     type="text"
-                     innerRef={(input) => this.inputValues = input}
-                     defaultValue={inputValues.join()}
-                     onChange={(event) => this.inputValues.value = event.target.value}
-                     onBlur={() => {
-                       // Because we are processing points as array of arrays in our engine [[x1, y1],...]
-                       // we need to make this array of arrays from string input
-                       const input = this.inputValues.value.split(",");
+            <UncontrolledDropdown nav inNavbar
+                                  className="d-inline-flex align-items-center px-3"
+                                  isOpen={dropdowns.inputValues}
+                                  toggle={this.toggleDropdown.bind(this, "inputValues")}>
+              <DropdownToggle nav caret>
+                Vstupní hodnoty
+              </DropdownToggle>
+              <DropdownMenu className="px-3">
+                <FormGroup>
+                  <Label for="exampleText">Vstupní hodnoty x1,y1,...</Label>
+                  <Input placeholder="x1, y1, x2, y2,..."
+                         type="textarea"
+                         innerRef={(input) => this.inputValues = input}
+                         defaultValue={inputValues.join()}
+                         onChange={(event) => this.inputValues.value = event.target.value}
+                         onBlur={() => {
+                           // Because we are processing points as array of arrays in our engine [[x1, y1],...]
+                           // we need to make this array of arrays from string input
+                           const input = this.inputValues.value.split(",");
 
-                       // Check count of the values
-                       if (input.length % 2 === 0 && input.length >= 4) {
+                           // Check count of the values
+                           if (input.length % 2 === 0 && input.length >= 4) {
 
-                         const values = [];
-                         input.map((item, index) => {
-                           if (index % 2 === 0) {
-                             values.push([parseFloat(item, 10), parseFloat(input[index + 1], 10)])
+                             const values = [];
+                             input.map((item, index) => {
+                               if (index % 2 === 0) {
+                                 values.push([parseFloat(item, 10), parseFloat(input[index + 1], 10)])
+                               }
+                             });
+
+                             // All is good => set values to state
+                             if (values.find((element) => isNaN(element[0]) || isNaN(element[1])) === undefined) {
+                               this.setState({inputValues: values, inputValid: true});
+                               return true;
+                             }
+
                            }
-                         });
 
-                         // All is good => set values to state
-                         if (values.find((element) => isNaN(element[0]) || isNaN(element[1])) === undefined) {
-                           this.setState({inputValues: values, inputValid: true});
-                           return true;
-                         }
+                           this.setState({inputValid: false});
+                           return 0;
+                         }}
+                  />
+                </FormGroup>
+              </DropdownMenu>
+            </UncontrolledDropdown>
+          </Nav>
+        </Navbar>
 
-                       }
-
-                       this.setState({inputValid: false});
-                       return 0;
-                     }}
-              />
-            </InputGroup>
-          </TopOptionsBarDropdownItem>
-        </TopOptionsBar>
-
-        <div id="regression-chart-wrapper" ref={(elem) => this.chartWrapper = elem} className="h-100 w-100">
+        <div id="regression-chart-wrapper" ref={(elem) => {
+          this.chartWrapper = elem
+        }} className="h-100 w-100">
           <Stage ref={(stage) => this.stage = stage}
                  width={this.canvasManager.dimensions[0]}
                  height={this.canvasManager.dimensions[1]}>
@@ -333,7 +328,6 @@ export default class Regression extends React.Component {
               {xTicks.grid}
               {yTicks.grid}
             </Layer>
-
             <Layer ref={(layer) => this.crosshairsLayer = layer}>
               <Group x={0}
                      y={0}>
@@ -360,7 +354,6 @@ export default class Regression extends React.Component {
                 />
               </Group>
             </Layer>
-
             <Layer ref={(layer) => this.pointsLayer = layer}>
               {
                 inputValues.map((point, index) => {
@@ -369,15 +362,16 @@ export default class Regression extends React.Component {
                   let yShift = 0;
 
                   // Squares laying bellow approximation line must be flipped on vertical axis to approach approximation line
-                  const bellow = this.canvasManager.yScale(point[1]) >= this.canvasManager.yScale(approxLineProps.points[index][1]);
+                  const bellow = point[1] <= approxLineProps.points[index][1];
 
                   // When function has raising trend, need to position squares differently
-                  const nextIndex = index === approxLineProps.points.length - 1 ? index : index + 1;
-                  const raising = point[1] < approxLineProps.points[nextIndex][1];
+                  const nextIndex = approxLineProps.points[index + 1] !== undefined ? index + 1 : index;
+                  const raising = point[1] <= approxLineProps.points[nextIndex][1];
+                  console.log(raising);
                   if (raising) {
 
                     if (bellow) {
-                      yShift = -leastSquareSize
+                      yShift = -leastSquareSize;
                     }
 
                     else {

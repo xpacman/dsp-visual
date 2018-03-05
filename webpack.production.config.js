@@ -74,7 +74,7 @@ module.exports = {
   resolve: {
     extensions: ['.js', '.jsx', '.scss'],
     alias: {
-      variables: resolve(__dirname, 'src/scss/utils/variables'),
+      variables: resolve(__dirname, 'src/scss/variables'),
       mixins: resolve(__dirname, 'src/scss/utils/mixins'),
       respond: resolve(__dirname, 'src/scss/utils/respond')
     }

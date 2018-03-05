@@ -1,15 +1,19 @@
-import React from 'react';
-import {Dropdown, DropdownToggle, DropdownMenu, DropdownItem, Label, InputGroup, Input, FormGroup} from 'reactstrap';
-import styles from './interpolation.scss';
-import CanvasManager from '../../utils/CanvasManager';
-import Signals from '../../utils/Signals';
-import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from '../../components';
-import {Stage, Layer, Rect, Line, Text, Group, Circle} from 'react-konva';
-import {max, min} from 'd3-array';
-import {arrayEquals} from '../../utils/utils';
-import InterpolationEngine from '../../utils/InterpolationEngine';
-import config from '../../config';
-import Konva from 'konva';
+import React from "react";
+import {
+  DropdownItem,
+  DropdownMenu, DropdownToggle, FormGroup, Input, Label, Nav, Navbar, NavItem,
+  UncontrolledDropdown
+} from "reactstrap";
+import styles from "./interpolation.scss";
+import CanvasManager from "../../utils/CanvasManager";
+import Signals from "../../utils/Signals";
+import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from "../../components";
+import {Stage, Layer, Rect, Line, Text, Group, Circle} from "react-konva";
+import {max, min} from "d3-array";
+import {arrayEquals} from "../../utils/utils";
+import InterpolationEngine from "../../utils/InterpolationEngine";
+import config from "../../config";
+import Konva from "konva";
 
 
 export default class Interpolation extends React.Component {
@@ -28,7 +32,7 @@ export default class Interpolation extends React.Component {
     };
 
     this.canvasManager = new CanvasManager(); // This class holds information about canvas size, scales etc...
-    this.chartMargins = [0, 75, 100, 0]; // Margins top, right, bottom, left, right and bottom are greater because we need leave space for axes
+    this.chartMargins = [0, 75, 65, 0]; // Margins top, right, bottom, left, right and bottom are greater because we need leave space for axes
     this.xTickMargins = [20, 0];
     this.yTickMargins = [0, 20];
     this.inputValues = null; // Input values ref
@@ -68,11 +72,11 @@ export default class Interpolation extends React.Component {
   rescale(data) {
     this.canvasManager.dimensions = [this.chartWrapper.offsetWidth, this.chartWrapper.offsetHeight];
     // Minimum and maximum of X from input values
-    this.canvasManager.xDomain = [min(data.map(d => d[0])), max(data.map(d => Math.abs(d[0])))];
+    this.canvasManager.xDomain = [min(data.map((d) => d[0])), max(data.map((d) => Math.abs(d[0])))];
     // From left edge to right edge minus space for axis
     this.canvasManager.xRange = [0, this.canvasManager.dimensions[0] - this.chartMargins[1]];
     // From zero to max Y point value
-    this.canvasManager.yDomain = [min(data.map(d => d[1])), max(data.map(d => Math.abs(d[1])))];
+    this.canvasManager.yDomain = [0, max(data.map((d) => Math.abs(d[1])))];
     // From bottom edge to top edge
     this.canvasManager.yRange = [this.canvasManager.dimensions[1] - this.chartMargins[2], 0];
     this.canvasManager.rescale();
@@ -81,6 +85,10 @@ export default class Interpolation extends React.Component {
 
   toggleDropdown(dropdown) {
     this.setState({dropdowns: {...this.state.dropdowns, [dropdown]: !this.state.dropdowns[dropdown]}})
+  }
+
+  setSignalPreset(signal) {
+    this.setState({inputValues: Signals.generateSinSignal()})
   }
 
   /**
@@ -180,65 +188,81 @@ export default class Interpolation extends React.Component {
                }
              }
            }}>
-        <TopOptionsBar>
-          <TopOptionsBarItem className={"ml-4 polyEquation"}
-                             ref={(elem) =>
-                               document.querySelector(".polyEquation").innerHTML = "Newtonova interpolace p(x) = " + InterpolationEngine.getNewtonPolyEquation(inputValues)}>
-          </TopOptionsBarItem>
+        <Navbar dark className={styles.navbar}>
+          <Nav>
+            <NavItem className="d-inline-flex align-items-center px-3 polyEquation"
+                     ref={(elem) =>
+                       document.querySelector(".polyEquation").innerHTML = "Newtonova interpolace p(x) = " + InterpolationEngine.getNewtonPolyEquation(inputValues)}>
+            </NavItem>
+            <UncontrolledDropdown nav inNavbar
+                                  className="d-inline-flex align-items-center px-3"
+                                  isOpen={dropdowns.signals}
+                                  toggle={this.toggleDropdown.bind(this, "signals")}>
+              <DropdownToggle nav caret>
+                Signál
+              </DropdownToggle>
+              <DropdownMenu >
+                <DropdownItem onClick={this.setSignalPreset.bind(this, "sin")}>
+                  Sinusový
+                </DropdownItem>
+                <DropdownItem>
+                  Diracův impuls
+                </DropdownItem>
+                <DropdownItem>
+                  Exponenciála nahoru
+                </DropdownItem>
+                <DropdownItem>
+                  Exponenciála dolů
+                </DropdownItem>
+              </DropdownMenu>
+            </UncontrolledDropdown>
+            <UncontrolledDropdown nav inNavbar
+                                  className="d-inline-flex align-items-center px-3"
+                                  isOpen={dropdowns.inputValues}
+                                  toggle={this.toggleDropdown.bind(this, "inputValues")}>
+              <DropdownToggle nav caret>
+                Vstupní hodnoty
+              </DropdownToggle>
+              <DropdownMenu className="px-3">
+                <FormGroup>
+                  <Label for="exampleText">Vstupní hodnoty x1,y1,...</Label>
+                  <Input placeholder="x1, y1, x2, y2,..."
+                         type="textarea"
+                         innerRef={(input) => this.inputValues = input}
+                         defaultValue={inputValues.join()}
+                         onChange={(event) => this.inputValues.value = event.target.value}
+                         onBlur={() => {
+                           // Because we are processing points as array of arrays in our engine [[x1, y1],...]
+                           // we need to make this array of arrays from string input
+                           const input = this.inputValues.value.split(",");
 
-          <div>
-            <TopOptionsBarDropdownItem toggle={this.toggleDropdown.bind(this, "signals")}
-                                       isOpen={dropdowns.signals}
-                                       dropdownToggleText={`Signál`}>
-              <DropdownItem header>Signály</DropdownItem>
-              <DropdownItem
-                onClick={() => this.setState({inputValues: Signals.generateSinSignal()})}>Sin(x)</DropdownItem>
-              <DropdownItem>Diracův impuls</DropdownItem>
-              <DropdownItem>Exponenciála nahoru</DropdownItem>
-              <DropdownItem>Exponenciála dolů</DropdownItem>
-            </TopOptionsBarDropdownItem>
+                           // Check count of the values
+                           if (input.length % 2 === 0 && input.length >= 4) {
 
-            <TopOptionsBarDropdownItem toggle={this.toggleDropdown.bind(this, "inputValues")}
-                                       isOpen={dropdowns.inputValues}
-                                       dropdownMenuClass={`${styles.inputValuesDropdown} ${!inputValid ? styles.invalidInput : ""}`}
-                                       dropdownToggleText={`Vstupní hodnoty`}>
-              <InputGroup>
-                <Input placeholder="x1, y1, x2, y2,..."
-                       type="text"
-                       innerRef={(input) => this.inputValues = input}
-                       defaultValue={inputValues.join()}
-                       onChange={(event) => this.inputValues.value = event.target.value}
-                       onBlur={() => {
-                         // Because we are processing points as array of arrays in our engine [[x1, y1],...]
-                         // we need to make this array of arrays from string input
-                         const input = this.inputValues.value.split(",");
+                             const values = [];
+                             input.map((item, index) => {
+                               if (index % 2 === 0) {
+                                 values.push([parseFloat(item, 10), parseFloat(input[index + 1], 10)])
+                               }
+                             });
 
-                         // Check count of the values
-                         if (input.length % 2 === 0 && input.length >= 4) {
-
-                           const values = [];
-                           input.map((item, index) => {
-                             if (index % 2 === 0) {
-                               values.push([parseFloat(item, 10), parseFloat(input[index + 1], 10)])
+                             // All is good => set values to state
+                             if (values.find((element) => isNaN(element[0]) || isNaN(element[1])) === undefined) {
+                               this.setState({inputValues: values, inputValid: true});
+                               return true;
                              }
-                           });
 
-                           // All is good => set values to state
-                           if (values.find((element) => isNaN(element[0]) || isNaN(element[1])) === undefined) {
-                             this.setState({inputValues: values, inputValid: true});
-                             return true;
                            }
 
-                         }
-
-                         this.setState({inputValid: false});
-                         return 0;
-                       }}
-                />
-              </InputGroup>
-            </TopOptionsBarDropdownItem>
-          </div>
-        </TopOptionsBar>
+                           this.setState({inputValid: false});
+                           return 0;
+                         }}
+                  />
+                </FormGroup>
+              </DropdownMenu>
+            </UncontrolledDropdown>
+          </Nav>
+        </Navbar>
 
         <div id="regression-chart-wrapper" ref={(elem) => this.chartWrapper = elem} className="h-100 w-100">
           <Stage ref={(stage) => this.stage = stage}

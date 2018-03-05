@@ -18,6 +18,7 @@ module.exports = {
   entry: [
     'react-hot-loader/patch',
     `webpack-dev-server/client?http://${process.env.NODE_HOST || 'localhost'}:${process.env.NODE_PORT || 8111}`,
+    `bootstrap-loader`,
     './'
   ],
 
@@ -73,9 +74,9 @@ module.exports = {
   resolve: {
     extensions: ['.js', '.jsx', '.scss'],
     alias: {
-      variables: resolve(__dirname, 'src/scss/utils/variables'),
+      variables: resolve(__dirname, 'src/scss/variables'),
       mixins: resolve(__dirname, 'src/scss/utils/mixins'),
-      respond: resolve(__dirname, 'src/scss/utils/respond')
+      respond: resolve(__dirname, 'src/scss/utils/respond'),
     }
   },
 
@@ -105,6 +106,26 @@ module.exports = {
     new Dotenv({
       path: './.env',
       safe: true
+    }),
+    new webpack.ProvidePlugin({
+      $: "jquery",
+      jQuery: "jquery",
+      "window.jQuery": "jquery",
+      Tether: "tether",
+      "window.Tether": "tether",
+      Popper: "popper.js",
+      "window.Popper": "popper.js",
+      Alert: "exports-loader?Alert!bootstrap/js/dist/alert",
+      Button: "exports-loader?Button!bootstrap/js/dist/button",
+      Carousel: "exports-loader?Carousel!bootstrap/js/dist/carousel",
+      Collapse: "exports-loader?Collapse!bootstrap/js/dist/collapse",
+      Dropdown: "exports-loader?Dropdown!bootstrap/js/dist/dropdown",
+      Modal: "exports-loader?Modal!bootstrap/js/dist/modal",
+      Popover: "exports-loader?Popover!bootstrap/js/dist/popover",
+      Scrollspy: "exports-loader?Scrollspy!bootstrap/js/dist/scrollspy",
+      Tab: "exports-loader?Tab!bootstrap/js/dist/tab",
+      Tooltip: "exports-loader?Tooltip!bootstrap/js/dist/tooltip",
+      Util: "exports-loader?Util!bootstrap/js/dist/util",
     }),
     new webpack.optimize.ModuleConcatenationPlugin(),
     new HtmlWebpackPlugin({

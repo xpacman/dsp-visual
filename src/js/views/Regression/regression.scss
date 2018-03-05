@@ -1,25 +1,13 @@
 @import "~variables";
 
 .container {
-  max-width: 100%;
+  flex: 1;
   overflow: hidden;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.inputValuesDropdown {
-  min-width: 200px;
-
-  & > input {
-    background: none;
-  }
-}
-
-.invalidInput {
-  input:focus {
-    border-color: red !important;
-  }
-}
-
-.divider {
-  border-right: 1px solid $optionsBarBorderColor;
+.navbar{
+  border-bottom: 1px solid $body-border;
+  height: $navbar-height;
 }

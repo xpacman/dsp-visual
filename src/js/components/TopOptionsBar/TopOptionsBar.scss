@@ -1,16 +1,15 @@
-@import '../../../scss/utils/variables';
+@import '~variables';
 
 .topOptionsBar {
   display: flex;
   flex-direction: row;
-  border-bottom: 1px solid $optionsBarBorderColor;
-  color: $optionsBarColor;
+  border-bottom: 1px solid $body-border;
   justify-content: space-between;
+  min-height: 38px;
 }
 
 .topOptionsBar__item {
-  color: $optionsBarItemColor;
-  padding: $optionsBarItemPadding;
+  padding: $padding-base-vertical $padding-base-horizontal;
   display: inline-flex;
   cursor: pointer;
   vertical-align: middle;
@@ -49,5 +48,11 @@
     &:focus {
       background: $inputBg;
     }
+  }
+}
+
+.invalidInput {
+  input:focus {
+    border-color: red !important;
   }
 }

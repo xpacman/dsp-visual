@@ -1,0 +1,83 @@
+@import "~bootstrap/scss/functions";
+
+// region RESPONSIVENES REMOVAL
+
+// Extra small screen / phone
+// Note: Deprecated $screen-xs and $screen-phone as of v3.0.1
+$screen-xs: 1px;
+$screen-xs-min: $screen-xs;
+$screen-phone: $screen-xs-min;
+
+// Small screen / tablet
+// Note: Deprecated $screen-sm and $screen-tablet as of v3.0.1
+$screen-sm: 2px;
+$screen-sm-min: $screen-sm;
+$screen-tablet: $screen-sm-min;
+
+// Medium screen / desktop
+// Note: Deprecated $screen-md and $screen-desktop as of v3.0.1
+$screen-md: 3px;
+$screen-md-min: $screen-md;
+$screen-desktop: $screen-md-min;
+
+// Large screen / wide desktop
+// Note: Deprecated $screen-lg and $screen-lg-desktop as of v3.0.1
+$screen-lg: 9999px;
+$screen-lg-min: $screen-lg;
+$screen-lg-desktop: $screen-lg-min;
+
+// endregion
+
+$navbar-height: 60px;
+$padding-base-vertical: 5px;
+$padding-base-horizontal: 5px;
+
+// $padding-large-vertical: 10px;
+// $padding-large-horizontal: 10px;
+
+$padding-small-vertical: 2px;
+$padding-small-horizontal: 2px;
+
+$padding-xs-vertical: 1px;
+$padding-xs-horizontal: 1px;
+
+$font-family-sans-serif: 'BlinkMacSystemFont', 'Lucida Grande', 'Segoe UI', Ubuntu, Cantarell, sans-serif;
+
+$font-family-serif: Georgia, "Times New Roman", Times, serif;
+$font-family-monospace: Menlo, Monaco, Consolas, "Courier New", monospace;
+$font-family-base: $font-family-sans-serif;
+
+
+@import '../../node_modules/bootstrap/scss/variables';
+
+$body-bg: black;
+$body-color: #A5ABB1;
+$body-border: lighten($body-bg, 20);
+
+//
+// Fonts
+//
+$font-family: 'Helvetica Neue', Helvetica, Arial, 'sans-serif';
+
+$spacer-y: 2rem;
+$gray: #464a4c;
+$gray-dark: #292b2c;
+$gray-light: #636c72;
+$gray-lighter: #eceeef;
+$gray-lightest: #f7f7f9;
+
+// Navigation
+$sideMenuItemColor: #868e96;
+$sideMenuItemHover: #adb5bd;
+$sideMenuItemActiveColor: white;
+
+// Options bar
+$optionsBarColor: $gray-light;
+$optionsBarHoverColor: $gray-lighter;
+$optionsBarBorderColor: $gray;
+$optionsBarItemPadding: 10px;
+$optionsBarItemColor: $gray-light;
+$optionsBarDropdownMenuBg: $body-bg;
+$optionsBarDropdownMenuBorderColor: $gray-dark;
+$inputBg: #0c0c0c;
+
