@@ -5,7 +5,7 @@ import {
   UncontrolledDropdown
 } from "reactstrap";
 import styles from "./regression.scss";
-import CanvasManager from "../../utils/CanvasManager";
+import ChartManager from "../../utils/ChartManager";
 import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from "../../components";
 import {Circle, Group, Layer, Line, Rect, Stage, Text} from "react-konva";
 import {max, min} from "d3-array";
@@ -17,31 +17,29 @@ import config from "../../config";
 export default class Regression extends React.Component {
   constructor(props) {
     super(props);
-    // Default input values
-    const inputValues = [[0, 1], [1, 2], [3, 6], [6, 5]];
     this.state = {
       dropdowns: {
         inputValues: false,
         approximation: false
       },
       inputValid: true,
-      inputValues: inputValues,
+      inputValues: [[0, 1], [1, 2], [3, 6], [6, 5]],
       selectedApproximation: 'line',
       displayLeastSquares: true
     };
 
-    this.canvasManager = new CanvasManager(); // This class holds information about canvas size, scales etc...
-    this.approximationResults = {}; // Approximations will be placed here
-    this.chartMargins = [0, 75, 65, 0]; // Margins top, right, bottom, left, right and bottom are greater because we need leave space for axes
+    this.chartManager = new ChartManager({chartMargins: [0, 75, 65, 0]}); // This class holds information about canvas size, scales etc...
     this.xTickMargins = [20, 0];
     this.yTickMargins = [0, 20];
+    // Refs
     this.inputValues = null; // Input values ref
     this.chartWrapper = null; // Chart wrapper ref
     this.stage = null; // Konva stage ref
     this.crosshairsLayer = null; // Crosshairs layer ref
     this.pointsLayer = null; // Points layer ref
     this.axisLayer = null; // Axes layer ref
-
+    this.xTicks = []; // X Ticks refs
+    this.yTicks = []; // Y Ticks refs
   }
 
   componentDidMount() {
@@ -58,7 +56,7 @@ export default class Regression extends React.Component {
     // If canvas wrapper exists
     if (this.chartWrapper !== null) {
       // If dimensions or data has changed anyhow -> rescale
-      if ((this.chartWrapper.offsetWidth !== this.canvasManager.dimensions[0] || this.chartWrapper.offsetHeight !== this.canvasManager.dimensions[1])
+      if ((this.chartWrapper.offsetWidth !== this.chartManager.dimensions[0] || this.chartWrapper.offsetHeight !== this.chartManager.dimensions[1])
         || !arrayEquals(this.state.inputValues, nextState.inputValues)) {
         this.rescale(nextState.inputValues);
       }
@@ -70,16 +68,13 @@ export default class Regression extends React.Component {
    * @param data
    */
   rescale(data) {
-    this.canvasManager.dimensions = [this.chartWrapper.offsetWidth, this.chartWrapper.offsetHeight];
-    // Minimum and maximum of X from input values
-    this.canvasManager.xDomain = [min(data.map((d) => d[0])), max(data.map((d) => Math.abs(d[0])))];
-    // From left edge to right edge minus space for axis
-    this.canvasManager.xRange = [0, this.canvasManager.dimensions[0] - this.chartMargins[1]];
-    // From zero to max Y point value
-    this.canvasManager.yDomain = [0, max(data.map((d) => Math.abs(d[1])))];
-    // From bottom edge to top edge
-    this.canvasManager.yRange = [this.canvasManager.dimensions[1] - this.chartMargins[2], 0];
-    this.canvasManager.rescale();
+    this.chartManager.rescale(
+      [this.chartWrapper.offsetWidth, this.chartWrapper.offsetHeight],
+      [0, this.chartWrapper.offsetWidth - this.chartManager.chartMargins[1]],
+      [min(data.map((d) => d[0])), max(data.map((d) => Math.abs(d[0])))],
+      [this.chartWrapper.offsetHeight - this.chartManager.chartMargins[2], 0],
+      [0, max(data.map((d) => Math.abs(d[1])))]
+    );
     this.forceUpdate();
   }
 
@@ -99,61 +94,18 @@ export default class Regression extends React.Component {
   getPoints(inputValues) {
     const points = [];
     inputValues.map((point) => {
-      points.push(this.canvasManager.xScale(point[0]));
-      points.push(this.canvasManager.yScale(point[1]))
+      points.push(this.chartManager.xScale(point[0]));
+      points.push(this.chartManager.yScale(point[1]))
     });
     return points;
   }
 
   render() {
     const {dropdowns, inputValues, selectedApproximation, displayLeastSquares, inputValid} = this.state;
-    const xTicks = {ticks: [], grid: [], tickRefs: []};
-    const yTicks = {ticks: [], grid: []};
-
-    if (this.chartWrapper !== null) {
-      // Prepare ticks and grid for render (grid will be on separate layer, so split them right now instead of iterating through ticks twice)
-      this.canvasManager.xScale.ticks(10).map((tick, index) => {
-        const xPos = this.canvasManager.xScale(tick) + this.xTickMargins[1];
-        const yPos = this.canvasManager.dimensions[1] - this.chartMargins[2] + this.xTickMargins[0];
-        xTicks.ticks.push(<Text key={index}
-                                text={tick}
-                                ref={(elem) => xTicks.tickRefs.push(elem)}
-                                x={xPos}
-                                y={yPos}
-                                {...config.axisTick}
-        />);
-        xTicks.grid.push(<Line key={index}
-                               points={[xPos, yPos - this.xTickMargins[0], xPos, yPos - this.canvasManager.dimensions[1]]}
-                               {...config.axisTickLine}
-        />);
-      });
-      // Remove last tick and line (its redundant)
-      xTicks.grid.pop();
-      xTicks.ticks.pop();
-
-      this.canvasManager.yScale.ticks(10).map((tick, index) => {
-        const xPos = this.canvasManager.dimensions[0] - this.chartMargins[1] + this.yTickMargins[1];
-        const yPos = this.canvasManager.yScale(tick) + this.yTickMargins[0];
-        yTicks.ticks.push(<Text key={index}
-                                text={tick}
-                                x={xPos}
-                                y={yPos}
-                                {...config.axisTick}
-        />);
-        yTicks.grid.push(<Line key={index}
-                               points={[xPos - this.yTickMargins[1], yPos, xPos - this.canvasManager.dimensions[0] - this.chartMargins[1], yPos]}
-                               {...config.axisTickLine}
-        />);
-      })
-    }
-    // Remove first tick and line (its redundant)
-    yTicks.grid.shift();
-    yTicks.ticks.shift();
 
     let approxLineProps = {
       ...config.signalLine
     };
-
     let approxLabel = "";
     let equation = "";
     let leastSquares = 0;
@@ -199,33 +151,42 @@ export default class Regression extends React.Component {
              // Crosshairs handling
              if (this.crosshairsLayer !== null && this.stage !== null) {
                const cursorPosition = this.stage.getStage().getPointerPosition();
+
                if (cursorPosition) {
-                 const dimensionsWithMargins = [this.canvasManager.dimensions[0] - this.chartMargins[1] - this.chartMargins[3], this.canvasManager.dimensions[1] - this.chartMargins[2]];
+                 const dimensionsWithMargins = [this.chartManager.dimensions[0] - this.chartManager.chartMargins[1] - this.chartManager.chartMargins[3], this.chartManager.dimensions[1] - this.chartManager.chartMargins[2]];
                  if (cursorPosition.x > dimensionsWithMargins[0]) {
                    cursorPosition.x = dimensionsWithMargins[0]
                  }
+
                  if (cursorPosition.y > dimensionsWithMargins[1]) {
                    cursorPosition.y = dimensionsWithMargins[1]
                  }
+
                  // Crosshair line and text are grouped for synchronized moving
                  const xCrosshairGroup = this.crosshairsLayer.getChildren()[0];
                  const yCrosshairGroup = this.crosshairsLayer.getChildren()[1];
                  xCrosshairGroup.setAttr("x", cursorPosition.x);
                  yCrosshairGroup.setAttr("y", cursorPosition.y);
                  const xText = xCrosshairGroup.getChildren()[1];
-                 xText.setAttr("text", (this.canvasManager.xDomain[1] * (100 / (this.canvasManager.dimensions[0] - this.chartMargins[1]) * xCrosshairGroup.getPosition().x) / 100).toFixed(2));
+                 xText.setAttr("text", (this.chartManager.xDomain[1] * (100 / (this.chartManager.dimensions[0] - this.chartManager.chartMargins[1]) * xCrosshairGroup.getPosition().x) / 100).toFixed(2));
                  const yText = yCrosshairGroup.getChildren()[1];
-                 //xText.setAttr("text", this.canvasManager.xScale(xCrosshairGroup.getPosition().x));
+                 //xText.setAttr("text", this.chartManager.xScale(xCrosshairGroup.getPosition().x));
                  this.crosshairsLayer.getLayer().batchDraw();
 
-                 xTicks.ticks.map((tick, index) => {
+                 this.xTicks.map((tick, index) => {
                    // Crosshair is overlapping tick -> hide tick
-                   if (tick.props.x >= cursorPosition.x - 30 && tick.props.x <= cursorPosition.x + 40) {
-                     xTicks.tickRefs[index].visible(false);
-                   } else {
-                     xTicks.tickRefs[index].visible(true);
+                   if (tick) {
+
+                     if (tick.x() >= cursorPosition.x - 30 && tick.x() <= cursorPosition.x + 40) {
+                       this.xTicks[index].visible(false);
+                     }
+
+                     else {
+                       this.xTicks[index].visible(true);
+                     }
                    }
                  });
+
                  this.axisLayer.batchDraw();
                }
              }
@@ -305,7 +266,6 @@ export default class Regression extends React.Component {
                                this.setState({inputValues: values, inputValid: true});
                                return true;
                              }
-
                            }
 
                            this.setState({inputValid: false});
@@ -322,28 +282,45 @@ export default class Regression extends React.Component {
           this.chartWrapper = elem
         }} className="h-100 w-100">
           <Stage ref={(stage) => this.stage = stage}
-                 width={this.canvasManager.dimensions[0]}
-                 height={this.canvasManager.dimensions[1]}>
+                 width={this.chartManager.dimensions[0]}
+                 height={this.chartManager.dimensions[1]}>
             <Layer ref={(layer) => this.gridLayer = layer}>
-              {xTicks.grid}
-              {yTicks.grid}
+              {
+                this.chartManager.getHorizontalGrid(10).map((grid, index) => {
+                  return (
+                    <Line key={index}
+                          points={[this.chartManager.xScale(grid[0]), grid[1], this.chartManager.xScale(grid[2]), grid[3]]}
+                          {...config.axisTickLine}
+                    />)
+                })
+              }
+              {
+                this.chartManager.getVerticalGrid(10).map((grid, index) => {
+                  return (
+                    <Line key={index}
+                          points={[grid[0], this.chartManager.yScale(grid[1]), grid[2], this.chartManager.yScale(grid[3])]}
+                          {...config.axisTickLine}
+                    />)
+                })
+              }
             </Layer>
+
             <Layer ref={(layer) => this.crosshairsLayer = layer}>
               <Group x={0}
                      y={0}>
-                <Line points={[0, 0, 0, this.canvasManager.dimensions[1] - this.chartMargins[2]]}
+                <Line points={[0, 0, 0, this.chartManager.dimensions[1] - this.chartManager.chartMargins[2]]}
                       {...config.crosshairLine}
                       name="xCrosshair"
                 />
                 <Text text={""}
                       x={0}
-                      y={this.canvasManager.dimensions[1] - this.chartMargins[2] + this.xTickMargins[0]}
+                      y={this.chartManager.dimensions[1] - this.chartManager.chartMargins[2] + this.xTickMargins[0]}
                       {...config.crosshairText}
                 />
               </Group>
               <Group x={0}
                      y={0}>
-                <Line points={[0, 0, this.canvasManager.dimensions[0] - this.chartMargins[1], 0]}
+                <Line points={[0, 0, this.chartManager.dimensions[0] - this.chartManager.chartMargins[1], 0]}
                       {...config.crosshairLine}
                       name="yCrosshair"
                 />
@@ -354,10 +331,11 @@ export default class Regression extends React.Component {
                 />
               </Group>
             </Layer>
+
             <Layer ref={(layer) => this.pointsLayer = layer}>
               {
                 inputValues.map((point, index) => {
-                  const leastSquareSize = this.canvasManager.yScale(point[1]) - this.canvasManager.yScale(approxLineProps.points[index][1]);
+                  const leastSquareSize = this.chartManager.yScale(point[1]) - this.chartManager.yScale(approxLineProps.points[index][1]);
                   let xShift = 0;
                   let yShift = 0;
 
@@ -367,7 +345,7 @@ export default class Regression extends React.Component {
                   // When function has raising trend, need to position squares differently
                   const nextIndex = approxLineProps.points[index + 1] !== undefined ? index + 1 : index;
                   const raising = point[1] <= approxLineProps.points[nextIndex][1];
-                  console.log(raising);
+
                   if (raising) {
 
                     if (bellow) {
@@ -387,7 +365,7 @@ export default class Regression extends React.Component {
                   }
 
                   return (
-                    <Group key={index} x={this.canvasManager.xScale(point[0])} y={this.canvasManager.yScale(point[1])}>
+                    <Group key={index} x={this.chartManager.xScale(point[0])} y={this.chartManager.yScale(point[1])}>
                       <Line points={[-10, 0, 10, 0]} {...config.pointCross}/>
                       <Line points={[0, -10, 0, 10]}{...config.pointCross}/>
                       <Circle {...config.pointCircle} x={0} y={0}/>
@@ -403,24 +381,57 @@ export default class Regression extends React.Component {
                   )
                 })
               }
+
               <Line {...approxLineProps} points={this.getPoints(approxLineProps.points)}/>
             </Layer>
 
             <Layer ref={(layer) => this.axisLayer = layer}>
-              <Rect {...config.axisBackground} x={this.canvasManager.dimensions[0] - this.chartMargins[1]} y={0}
-                    width={this.chartMargins[1]} height={this.canvasManager.dimensions[1] - this.chartMargins[2]}/>
+              <Rect {...config.axisBackground} x={this.chartManager.dimensions[0] - this.chartManager.chartMargins[1]}
+                    y={0}
+                    width={this.chartManager.chartMargins[1]}
+                    height={this.chartManager.dimensions[1] - this.chartManager.chartMargins[2]}/>
+
               <Line
-                points={[0, this.canvasManager.dimensions[1] - this.chartMargins[2], this.canvasManager.dimensions[0], this.canvasManager.dimensions[1] - this.chartMargins[2]]}
+                points={[0, this.chartManager.dimensions[1] - this.chartManager.chartMargins[2], this.chartManager.dimensions[0], this.chartManager.dimensions[1] - this.chartManager.chartMargins[2]]}
                 {...config.axisLine}
               />
-              {xTicks.ticks}
-              <Rect {...config.axisBackground} x={0} y={this.canvasManager.dimensions[1]}
-                    width={this.canvasManager.dimensions[0]} height={this.chartMargins[2]}/>
+
+              {
+                this.chartManager.getHorizontalTicks(10).map((tick, index) => {
+                  return (
+                    <Text key={index}
+                          text={tick[0]}
+                          ref={(elem) => this.xTicks.push(elem)}
+                          x={this.chartManager.xScale(tick[0])}
+                          y={tick[1]}
+                          offsetX={10}
+                          offsetY={-20}
+                          {...config.axisTick}
+                    />);
+                })
+              }
+
+              <Rect {...config.axisBackground} x={0} y={this.chartManager.dimensions[1]}
+                    width={this.chartManager.dimensions[0]} height={this.chartManager.chartMargins[2]}/>
+
               <Line
-                points={[this.canvasManager.dimensions[0] - this.chartMargins[1], 0, this.canvasManager.dimensions[0] - this.chartMargins[1], this.canvasManager.dimensions[1]]}
+                points={[this.chartManager.dimensions[0] - this.chartManager.chartMargins[1], 0, this.chartManager.dimensions[0] - this.chartManager.chartMargins[1], this.chartManager.dimensions[1]]}
                 {...config.axisLine}
               />
-              {yTicks.ticks}
+              {
+                this.chartManager.getVerticalTicks(10).map((tick, index) => {
+                  return (
+                    <Text key={index}
+                          text={tick[1]}
+                          ref={(elem) => this.yTicks.push(elem)}
+                          x={tick[0]}
+                          y={this.chartManager.yScale(tick[1])}
+                          offsetX={-20}
+                          offsetY={10}
+                          {...config.axisTick}
+                    />);
+                })
+              }
             </Layer>
           </Stage>
         </div>

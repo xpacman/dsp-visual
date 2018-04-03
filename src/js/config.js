@@ -15,7 +15,6 @@ module.exports = {
   axisTick: {
     fill: "#494949",
     fontSize: 14,
-    offsetX: 10,
     align: "center"
   },
   axisLine: {
