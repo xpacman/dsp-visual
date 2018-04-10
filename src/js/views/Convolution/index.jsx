@@ -4,19 +4,20 @@ import {
   DropdownMenu, DropdownToggle, FormGroup, Input, Label, Nav, Navbar, NavItem,
   UncontrolledDropdown
 } from "reactstrap";
-import styles from "./interpolation.scss";
+import styles from "./convolution.scss";
 import ChartManager from "../../utils/ChartManager";
 import Signals from "../../utils/Signals";
 import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from "../../components";
 import {Stage, Layer, Rect, Line, Text, Group, Circle} from "react-konva";
 import {max, min} from "d3-array";
 import {arrayEquals} from "../../utils/utils";
+import Signal from "../../partials/Signal";
 import InterpolationEngine from "../../utils/InterpolationEngine";
 import config from "../../config";
 import Konva from "konva";
 
 
-export default class Interpolation extends React.Component {
+export default class Convolution extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -26,16 +27,25 @@ export default class Interpolation extends React.Component {
       },
       inputValid: true,
       //inputValues: Signals.generateSinSignal()
-      inputValues: [[1, 2], [2, 1.5], [2.5, 0.8], [4, 2.8]]
+      inputValues: {
+        x: [[0, 2], [1, 3], [2, 1.5], [2.5, 0.8], [4, 2.8]], // x input signal
+        h: [[0, 0], [1, 4], [2, 3], [2.5, 2], [4, 1]] // h kernel signal
+      }
     };
 
-    this.chartManager = new ChartManager({chartMargins: [0, 75, 65, 0]}); // This class holds information about canvas size, scales etc...
+    this.chartManager = new ChartManager({chartMargins: [0, 75, 65, 0], yDomain: [-5, 5]}); // This class holds information about canvas size, scales etc...
     this.xTickMargins = [20, 0];
     this.yTickMargins = [0, 20];
+    this.isPaint = false; // Canvas hand drawing
+    this.lastPointerPosition = null;
+
     // Refs
     this.inputValues = null; // Input values ref
     this.chartWrapper = null; // Chart wrapper ref
     this.stage = null; // Konva stage ref
+    // TODO: MOVE IN TO OBJECTS
+    this.canvas = null; // Drawing canvas ref
+    this.context = null; // Canvas context ref
     this.crosshairsLayer = null; // Crosshairs layer ref
     this.pointsLayer = null; // Points layer ref
     this.axisLayer = null; // Axes layer ref
@@ -45,12 +55,121 @@ export default class Interpolation extends React.Component {
 
   componentDidMount() {
     setTimeout(() => {
-      // Delayed mount of konva chart
+      // Delayed mount of konva components
       this.forceUpdate();
       // Listen for window resizes
       window.addEventListener("resize", () => this.forceUpdate());
-    }, 1000);
 
+      const stage = this.stage.getStage();
+      const layer = this.pointsLayer.getLayer();
+
+      // Set attributes for canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = stage.width() - this.chartManager.chartMargins[1];
+      canvas.height = stage.height() - this.chartManager.chartMargins[2];
+
+      // Canvas drawing handle trough konva image
+      const image = new Konva.Image({
+        image: canvas,
+        x: 0,
+        y: 0,
+        stroke: 'green',
+        shadowBlur: 5
+      });
+
+      // Mount special canvas
+      layer.add(image);
+
+      // Redraw
+      stage.draw();
+
+      this.context = canvas.getContext('2d');
+      this.context.strokeStyle = "#df4b26";
+      this.context.lineJoin = "round";
+      this.context.lineWidth = 5;
+      this.lastPointerPosition = {
+        x: 0,
+        y: this.chartManager.yScale(0)
+      };
+
+      /*
+       Beznákovic dívka, jo, tu mám rád. Při myšlence na ni, chce se mi začít smát...a taky řvát, že po tom všem, znovu ji musím psát,
+       */
+
+      // Prepare signal
+      this.signalH = new Signal(this.chartManager.xDomain[0], this.chartManager.xDomain[1]);
+      this.context.globalCompositeOperation = 'source-over';
+      this.context.beginPath();
+      this.context.moveTo(this.lastPointerPosition.x, this.lastPointerPosition.y);
+      this.signalH.values().forEach((point, i) => {
+        this.context.lineTo(this.chartManager.xScale(point[0]), this.chartManager.yScale(point[1]));
+      });
+      this.context.closePath();
+      this.context.stroke();
+
+      // Bind stage events
+      // Mouse move (drawing)
+      stage.on('contentMousemove.proto', () => {
+        if (!this.isPaint) {
+          return;
+        }
+
+        let localPos = {
+          x: this.lastPointerPosition.x - image.x(),
+          y: this.lastPointerPosition.y - image.y()
+        };
+        let min = this.chartManager.getCordXValue(localPos.x);
+        const pos = stage.getPointerPosition();
+        localPos = {
+          x: pos.x - image.x(),
+          y: pos.y - image.y()
+        };
+        let max = this.chartManager.getCordXValue(localPos.x);
+
+        // If user drags from right to left, swap values
+        if (min > max) {
+          const tmp = min;
+          min = max;
+          max = tmp;
+        }
+        // Determine which points to set (handles situation when user drags mouse too fast)
+        const pointsToSet = this.signalH.getPointsInRange(min, max);
+        this.context.beginPath();
+        // Clear canvas before drawing
+        this.context.clearRect(0, 0, this.chartManager.dimensions[0], this.chartManager.dimensions[1]);
+        // Set the points
+        // TODO: IMPROVE Y PRECISION SLIGHTLY
+        pointsToSet.forEach(point => this.signalH.setPoint(point[0], this.chartManager.getCordYValue(localPos.y)));
+        // Finally render points
+        this.signalH.values().forEach(point =>
+          this.context.lineTo(this.chartManager.xScale(point[0]), this.chartManager.yScale(point[1])));
+        this.context.stroke();
+
+        this.lastPointerPosition = pos;
+        layer.draw();
+      });
+
+      // Mouse down
+      stage.on('contentMousedown.proto', () => {
+        this.isPaint = true;
+        const pointerPos = stage.getPointerPosition();
+        // Clear canvas before drawing
+        this.context.clearRect(0, 0, this.chartManager.dimensions[0], this.chartManager.dimensions[1]);
+        this.context.beginPath();
+        const newPoint = this.signalH.setPoint(this.chartManager.getCordXValue(pointerPos.x, 3), this.chartManager.getCordYValue(pointerPos.y, 3));
+        this.signalH.setPoint(newPoint[0], newPoint[1]);
+        this.signalH.values().forEach(point =>
+          this.context.lineTo(this.chartManager.xScale(point[0]), this.chartManager.yScale(point[1])));
+        this.context.stroke();
+        layer.draw();
+        this.lastPointerPosition = pointerPos;
+      });
+
+      // Mouse up
+      stage.on('contentMouseup.proto', () => {
+        this.isPaint = false;
+      });
+    }, 1000);
   }
 
   componentWillUpdate(nextProps, nextState) {
@@ -59,7 +178,7 @@ export default class Interpolation extends React.Component {
       // If dimensions or data has changed anyhow -> rescale
       if ((this.chartWrapper.offsetWidth !== this.chartManager.dimensions[0] || this.chartWrapper.offsetHeight !== this.chartManager.dimensions[1])
         || !arrayEquals(this.state.inputValues, nextState.inputValues)) {
-        this.rescale(nextState.inputValues);
+        this.rescale([...nextState.inputValues.h, ...nextState.inputValues.x]);
       }
     }
   }
@@ -74,7 +193,7 @@ export default class Interpolation extends React.Component {
       [0, this.chartWrapper.offsetWidth - this.chartManager.chartMargins[1]],
       [min(data.map((d) => d[0])), max(data.map((d) => Math.abs(d[0])))],
       [this.chartWrapper.offsetHeight - this.chartManager.chartMargins[2], 0],
-      [0, max(data.map((d) => Math.abs(d[1])))]
+      [this.chartManager.yDomain[0], this.chartManager.yDomain[1]]
     );
     this.forceUpdate();
   }
@@ -129,7 +248,7 @@ export default class Interpolation extends React.Component {
                  const xText = xCrosshairGroup.getChildren()[1];
                  xText.setAttr("text", this.chartManager.getCordXValue(xCrosshairGroup.getPosition().x, 3));
                  const yText = yCrosshairGroup.getChildren()[1];
-                 //xText.setAttr("text", this.chartManager.xScale(xCrosshairGroup.getPosition().x));
+                 yText.setAttr("text", this.chartManager.getCordYValue(yCrosshairGroup.getPosition().y, 3));
                  this.crosshairsLayer.getLayer().batchDraw();
 
                  this.xTicks.map((tick, index) => {
@@ -152,9 +271,8 @@ export default class Interpolation extends React.Component {
            }}>
         <Navbar dark className={styles.navbar}>
           <Nav>
-            <NavItem className="d-inline-flex align-items-center px-3 polyEquation"
-                     ref={(elem) =>
-                       document.querySelector(".polyEquation").innerHTML = "Newtonova interpolace p(x) = " + InterpolationEngine.getNewtonPolyEquation(inputValues)}>
+            <NavItem className="d-inline-flex align-items-center px-3 polyEquation">
+              test
             </NavItem>
             <UncontrolledDropdown nav inNavbar
                                   className="d-inline-flex align-items-center px-3"
@@ -191,7 +309,7 @@ export default class Interpolation extends React.Component {
                   <Input placeholder="x1, y1, x2, y2,..."
                          type="textarea"
                          innerRef={(input) => this.inputValues = input}
-                         defaultValue={inputValues.join()}
+                         defaultValue={inputValues.x.join()}
                          onChange={(event) => this.inputValues.value = event.target.value}
                          onBlur={() => {
                            // Because we are processing points as array of arrays in our engine [[x1, y1],...]
@@ -225,7 +343,7 @@ export default class Interpolation extends React.Component {
           </Nav>
         </Navbar>
 
-        <div id="interpolation-chart-wrapper" ref={(elem) => this.chartWrapper = elem} className="h-100 w-100">
+        <div id="convolution-chart-wrapper" ref={(elem) => this.chartWrapper = elem} className="h-100 w-100">
           <Stage ref={(stage) => this.stage = stage}
                  width={this.chartManager.dimensions[0]}
                  height={this.chartManager.dimensions[1]}>
@@ -278,30 +396,7 @@ export default class Interpolation extends React.Component {
             </Layer>
 
             <Layer ref={(layer) => this.pointsLayer = layer}>
-              {
-                inputValues.map((point, index) => {
-                  return (
-                    <Group key={index} x={this.chartManager.xScale(point[0])} y={this.chartManager.yScale(point[1])}>
-                      <Line points={[-10, 0, 10, 0]} {...config.pointCross}/>
-                      <Line points={[0, -10, 0, 10]}{...config.pointCross}/>
-                      <Circle {...config.pointCircle} x={0} y={0}/>
-                    </Group>
-                  );
-                })
-              }
 
-              <Line {...config.signalLine} points={this.getPoints(inputValues)}/>
-
-              <Line {...config.signalLine} stroke="red"
-                    points={this.getPoints(InterpolationEngine.getZeroOrderHoldInterpolation(inputValues))}/>
-
-              <Line {...config.signalLine} stroke="white"
-                    points={this.getPoints(InterpolationEngine.newtonInterpolation(inputValues, (() => {
-                      const ret = [];
-                      for (let i = 0; i <= 100; i++)
-                        ret.push(i * 0.1);
-                      return ret
-                    })()))}/>
             </Layer>
 
             <Layer ref={(layer) => this.axisLayer = layer}>

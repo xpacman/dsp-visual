@@ -76,6 +76,7 @@
     "bootstrap": "^4.0.0-beta.3",
     "d3-array": "^1.2.1",
     "d3-scale": "^2.0.0",
+    "decimal.js-light": "^2.3.1",
     "jquery": "^1.12.4",
     "konva": "^1.7.6",
     "linear-solve": "^1.2.1",

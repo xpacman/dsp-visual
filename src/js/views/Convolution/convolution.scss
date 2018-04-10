@@ -1,0 +1,13 @@
+@import "~variables";
+
+.container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  border-bottom: 1px solid $body-border;
+  height: $navbar-height;
+}

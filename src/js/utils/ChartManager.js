@@ -84,7 +84,7 @@ export default class ChartManager {
 
   /**
    * Generates ticks for y axis
-   * @param count Number count of ticks
+   * @param count Number of ticks
    * @return {Array} Array of arrays [[x,y],...] positions of ticks
    */
   getVerticalTicks(count = 10) {
@@ -97,7 +97,7 @@ export default class ChartManager {
 
   /**
    * Generates grid lines for y axis
-   * @param count Number count of ticks
+   * @param count Number of ticks
    * @return {Array} Array of arrays [[x,y],...] positions of lines
    */
   getVerticalGrid(count = 10) {
@@ -108,4 +108,27 @@ export default class ChartManager {
     return ret
   }
 
+  /**
+   * Returns x value relative to x coordinate value
+   * @param x number position on canvas
+   * @param precision number precision for to fixed
+   * @return {string}
+   */
+  getCordXValue(x, precision = 2) {
+    // Value converted from canvas coords
+    const value = (this.xDomain[1] - this.xDomain[0]) * (100 / (this.dimensions[0] - this.chartMargins[1]) * x / 100);
+    return (this.xDomain[0] + value).toFixed(precision);
+  }
+
+  /**
+   * Returns y value relative to y coordinate value
+   * @param y number position on canvas
+   * @param precision number precision for to fixed
+   * @return {string}
+   */
+  getCordYValue(y, precision = 2) {
+    // Value converted from canvas coords
+    const value = (this.yDomain[1] - this.yDomain[0]) * (100 / (this.dimensions[1] - this.chartMargins[0] - this.chartMargins[2]) * y / 100);
+    return (this.yDomain[1] - value).toFixed(precision);
+  }
 }

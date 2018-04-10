@@ -8,6 +8,7 @@ import Home from './views/Home';
 import NotFound from './views/NotFound';
 import Regression from './views/Regression';
 import Interpolation from './views/Interpolation';
+import Convolution from './views/Convolution';
 
 export default class App extends Component {
 
@@ -21,6 +22,7 @@ export default class App extends Component {
               <Route exact path="/" component={Home}/>
               <Route path="/regrese" component={Regression}/>
               <Route path="/interpolace" component={Interpolation}/>
+              <Route path="/linearni-konvoluce" component={Convolution}/>
               <Route component={NotFound}/>
             </Switch>
           </div>
