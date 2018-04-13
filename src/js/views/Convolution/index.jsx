@@ -5,14 +5,11 @@ import {
   UncontrolledDropdown
 } from "reactstrap";
 import styles from "./convolution.scss";
-import ChartManager from "../../utils/ChartManager";
 import Signals from "../../utils/Signals";
 import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from "../../components";
-import {Stage, Layer, Rect, Line, Text, Group, Circle} from "react-konva";
 import {max, min} from "d3-array";
-import {arrayEquals} from "../../utils/utils";
 import Signal from "../../partials/Signal";
-import InterpolationEngine from "../../utils/InterpolationEngine";
+import Chart from "../../partials/Chart";
 import config from "../../config";
 import Konva from "konva";
 
@@ -33,24 +30,26 @@ export default class Convolution extends React.Component {
       }
     };
 
-    this.chartManager = new ChartManager({chartMargins: [0, 75, 65, 0], yDomain: [-5, 5]}); // This class holds information about canvas size, scales etc...
-    this.xTickMargins = [20, 0];
-    this.yTickMargins = [0, 20];
+    // Signals
+    this.signalH = null; // Kernel signal
+    this.signalX = null; // Input signal
+    this.signalOutput = null; // Output (result) signal
+
     this.isPaint = false; // Canvas hand drawing
     this.lastPointerPosition = null;
 
     // Refs
     this.inputValues = null; // Input values ref
-    this.chartWrapper = null; // Chart wrapper ref
-    this.stage = null; // Konva stage ref
-    // TODO: MOVE IN TO OBJECTS
-    this.canvas = null; // Drawing canvas ref
-    this.context = null; // Canvas context ref
-    this.crosshairsLayer = null; // Crosshairs layer ref
-    this.pointsLayer = null; // Points layer ref
-    this.axisLayer = null; // Axes layer ref
-    this.xTicks = []; // X Ticks refs
-    this.yTicks = []; // Y Ticks refs
+    this.kernelChartWrapper = null; // Kernel Chart wrapper ref
+    this.inputChartWrapper = null; // Input Chart wrapper ref
+    this.outputChartWrapper = null; // Output Chart wrapper ref
+    this.stepChartWrapper = null; // Step Chart wrapper ref
+    this.draggableChartWrapper = null; // Draggable Chart wrapper ref
+    this.kernelChart = null; // Kernel Chart ref
+    this.outputChart = null; // Output Chart ref
+    this.inputChart = null; // Input Chart ref
+    this.stepChart = null; // Step Chart ref
+    this.draggableChart = null; // Draggable Chart ref
   }
 
   componentDidMount() {
@@ -59,143 +58,7 @@ export default class Convolution extends React.Component {
       this.forceUpdate();
       // Listen for window resizes
       window.addEventListener("resize", () => this.forceUpdate());
-
-      const stage = this.stage.getStage();
-      const layer = this.pointsLayer.getLayer();
-
-      // Set attributes for canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = stage.width() - this.chartManager.chartMargins[1];
-      canvas.height = stage.height() - this.chartManager.chartMargins[2];
-
-      // Canvas drawing handle trough konva image
-      const image = new Konva.Image({
-        image: canvas,
-        x: 0,
-        y: 0,
-        stroke: 'green',
-        shadowBlur: 5
-      });
-
-      // Mount special canvas
-      layer.add(image);
-
-      // Redraw
-      stage.draw();
-
-      this.context = canvas.getContext('2d');
-      this.context.strokeStyle = "#df4b26";
-      this.context.lineJoin = "round";
-      this.context.lineWidth = 5;
-      this.lastPointerPosition = {
-        x: 0,
-        y: this.chartManager.yScale(0)
-      };
-
-      /*
-       Beznákovic dívka, jo, tu mám rád. Při myšlence na ni, chce se mi začít smát...a taky řvát, že po tom všem, znovu ji musím psát,
-       */
-
-      // Prepare signal
-      this.signalH = new Signal(this.chartManager.xDomain[0], this.chartManager.xDomain[1]);
-      this.context.globalCompositeOperation = 'source-over';
-      this.context.beginPath();
-      this.context.moveTo(this.lastPointerPosition.x, this.lastPointerPosition.y);
-      this.signalH.values().forEach((point, i) => {
-        this.context.lineTo(this.chartManager.xScale(point[0]), this.chartManager.yScale(point[1]));
-      });
-      this.context.closePath();
-      this.context.stroke();
-
-      // Bind stage events
-      // Mouse move (drawing)
-      stage.on('contentMousemove.proto', () => {
-        if (!this.isPaint) {
-          return;
-        }
-
-        let localPos = {
-          x: this.lastPointerPosition.x - image.x(),
-          y: this.lastPointerPosition.y - image.y()
-        };
-        let min = this.chartManager.getCordXValue(localPos.x);
-        const pos = stage.getPointerPosition();
-        localPos = {
-          x: pos.x - image.x(),
-          y: pos.y - image.y()
-        };
-        let max = this.chartManager.getCordXValue(localPos.x);
-
-        // If user drags from right to left, swap values
-        if (min > max) {
-          const tmp = min;
-          min = max;
-          max = tmp;
-        }
-        // Determine which points to set (handles situation when user drags mouse too fast)
-        const pointsToSet = this.signalH.getPointsInRange(min, max);
-        this.context.beginPath();
-        // Clear canvas before drawing
-        this.context.clearRect(0, 0, this.chartManager.dimensions[0], this.chartManager.dimensions[1]);
-        // Set the points
-        // TODO: IMPROVE Y PRECISION SLIGHTLY
-        pointsToSet.forEach(point => this.signalH.setPoint(point[0], this.chartManager.getCordYValue(localPos.y)));
-        // Finally render points
-        this.signalH.values().forEach(point =>
-          this.context.lineTo(this.chartManager.xScale(point[0]), this.chartManager.yScale(point[1])));
-        this.context.stroke();
-
-        this.lastPointerPosition = pos;
-        layer.draw();
-      });
-
-      // Mouse down
-      stage.on('contentMousedown.proto', () => {
-        this.isPaint = true;
-        const pointerPos = stage.getPointerPosition();
-        // Clear canvas before drawing
-        this.context.clearRect(0, 0, this.chartManager.dimensions[0], this.chartManager.dimensions[1]);
-        this.context.beginPath();
-        const newPoint = this.signalH.setPoint(this.chartManager.getCordXValue(pointerPos.x, 3), this.chartManager.getCordYValue(pointerPos.y, 3));
-        this.signalH.setPoint(newPoint[0], newPoint[1]);
-        this.signalH.values().forEach(point =>
-          this.context.lineTo(this.chartManager.xScale(point[0]), this.chartManager.yScale(point[1])));
-        this.context.stroke();
-        layer.draw();
-        this.lastPointerPosition = pointerPos;
-      });
-
-      // Mouse up
-      stage.on('contentMouseup.proto', () => {
-        this.isPaint = false;
-      });
-    }, 1000);
-  }
-
-  componentWillUpdate(nextProps, nextState) {
-    // If canvas wrapper exists
-    if (this.chartWrapper !== null) {
-      // If dimensions or data has changed anyhow -> rescale
-      if ((this.chartWrapper.offsetWidth !== this.chartManager.dimensions[0] || this.chartWrapper.offsetHeight !== this.chartManager.dimensions[1])
-        || !arrayEquals(this.state.inputValues, nextState.inputValues)) {
-        this.rescale([...nextState.inputValues.h, ...nextState.inputValues.x]);
-      }
-    }
-  }
-
-  /**
-   * Rescales canvas for new data
-   * @param data
-   */
-  rescale(data) {
-    this.chartManager.rescale(
-      [this.chartWrapper.offsetWidth, this.chartWrapper.offsetHeight],
-      [0, this.chartWrapper.offsetWidth - this.chartManager.chartMargins[1]],
-      [min(data.map((d) => d[0])), max(data.map((d) => Math.abs(d[0])))],
-      [this.chartWrapper.offsetHeight - this.chartManager.chartMargins[2], 0],
-      [this.chartManager.yDomain[0], this.chartManager.yDomain[1]]
-    );
-    this.forceUpdate();
+    })
   }
 
   toggleDropdown(dropdown) {
@@ -214,8 +77,8 @@ export default class Convolution extends React.Component {
   getPoints(inputValues) {
     const points = [];
     inputValues.map((point) => {
-      points.push(this.chartManager.xScale(point[0]));
-      points.push(this.chartManager.yScale(point[1]))
+      points.push(this.kernelChart.xScale(point[0]));
+      points.push(this.kernelChart.yScale(point[1]))
     });
     return points;
   }
@@ -224,51 +87,7 @@ export default class Convolution extends React.Component {
     const {dropdowns, inputValues, inputValid} = this.state;
 
     return (
-      <div className={styles.container}
-           onMouseMove={() => {
-             // Crosshairs handling
-             if (this.crosshairsLayer !== null && this.stage !== null) {
-               const cursorPosition = this.stage.getStage().getPointerPosition();
-
-               if (cursorPosition) {
-                 const dimensionsWithMargins = [this.chartManager.dimensions[0] - this.chartManager.chartMargins[1] - this.chartManager.chartMargins[3], this.chartManager.dimensions[1] - this.chartManager.chartMargins[2]];
-                 if (cursorPosition.x > dimensionsWithMargins[0]) {
-                   cursorPosition.x = dimensionsWithMargins[0]
-                 }
-
-                 if (cursorPosition.y > dimensionsWithMargins[1]) {
-                   cursorPosition.y = dimensionsWithMargins[1]
-                 }
-
-                 // Crosshair line and text are grouped for synchronized moving
-                 const xCrosshairGroup = this.crosshairsLayer.getChildren()[0];
-                 const yCrosshairGroup = this.crosshairsLayer.getChildren()[1];
-                 xCrosshairGroup.setAttr("x", cursorPosition.x);
-                 yCrosshairGroup.setAttr("y", cursorPosition.y);
-                 const xText = xCrosshairGroup.getChildren()[1];
-                 xText.setAttr("text", this.chartManager.getCordXValue(xCrosshairGroup.getPosition().x, 3));
-                 const yText = yCrosshairGroup.getChildren()[1];
-                 yText.setAttr("text", this.chartManager.getCordYValue(yCrosshairGroup.getPosition().y, 3));
-                 this.crosshairsLayer.getLayer().batchDraw();
-
-                 this.xTicks.map((tick, index) => {
-                   // Crosshair is overlapping tick -> hide tick
-                   if (tick) {
-
-                     if (tick.x() >= cursorPosition.x - 30 && tick.x() <= cursorPosition.x + 40) {
-                       this.xTicks[index].visible(false);
-                     }
-
-                     else {
-                       this.xTicks[index].visible(true);
-                     }
-                   }
-                 });
-
-                 this.axisLayer.batchDraw();
-               }
-             }
-           }}>
+      <div className={styles.container}>
         <Navbar dark className={styles.navbar}>
           <Nav>
             <NavItem className="d-inline-flex align-items-center px-3 polyEquation">
@@ -343,107 +162,170 @@ export default class Convolution extends React.Component {
           </Nav>
         </Navbar>
 
-        <div id="convolution-chart-wrapper" ref={(elem) => this.chartWrapper = elem} className="h-100 w-100">
-          <Stage ref={(stage) => this.stage = stage}
-                 width={this.chartManager.dimensions[0]}
-                 height={this.chartManager.dimensions[1]}>
-            <Layer ref={(layer) => this.gridLayer = layer}>
-              {
-                this.chartManager.getHorizontalGrid(10).map((grid, index) => {
-                  return (
-                    <Line key={index}
-                          points={[this.chartManager.xScale(grid[0]), grid[1], this.chartManager.xScale(grid[2]), grid[3]]}
-                          {...config.axisTickLine}
-                    />)
-                })
-              }
-              {
-                this.chartManager.getVerticalGrid(10).map((grid, index) => {
-                  return (
-                    <Line key={index}
-                          points={[grid[0], this.chartManager.yScale(grid[1]), grid[2], this.chartManager.yScale(grid[3])]}
-                          {...config.axisTickLine}
-                    />)
-                })
-              }
-            </Layer>
+        <div className={`row h-100 ${styles.chartRow}`}>
+          <div id="kernel-chart-wrapper" ref={(elem) => this.kernelChartWrapper = elem}
+               className={`col-4 ${styles.chartWrapper}`}>
+            {this.kernelChartWrapper && <Chart ref={(chart) => this.kernelChart = chart}
+                                               wrapper={this.kernelChartWrapper}
+                                               width={this.kernelChartWrapper.offsetWidth}
+                                               height={this.kernelChartWrapper.offsetHeight}
+                                               xDomain={[0, 5]}
+                                               yDomain={[-2, 2]}
+                                               onContentRender={(chart) => {
+                                                 const stage = chart.canvas.stage(),
+                                                   layer = chart.canvas.getLayer("pointsLayer"),
+                                                   canvas = chart.getCanvas(),
+                                                   context = chart.getContext();
 
-            <Layer ref={(layer) => this.crosshairsLayer = layer}>
-              <Group x={0}
-                     y={0}>
-                <Line points={[0, 0, 0, this.chartManager.dimensions[1] - this.chartManager.chartMargins[2]]}
-                      {...config.crosshairLine}
-                      name="xCrosshair"
-                />
-                <Text text={""}
-                      x={0}
-                      y={this.chartManager.dimensions[1] - this.chartManager.chartMargins[2] + this.xTickMargins[0]}
-                      {...config.crosshairText}
-                />
-              </Group>
-              <Group x={0}
-                     y={0}>
-                <Line points={[0, 0, this.chartManager.dimensions[0] - this.chartManager.chartMargins[1], 0]}
-                      {...config.crosshairLine}
-                      name="yCrosshair"
-                />
-                <Text text={""}
-                      x={0}
-                      y={0}
-                      {...config.crosshairText}
-                />
-              </Group>
-            </Layer>
+                                                 // Set attributes for canvas
+                                                 canvas.width = chart.trimDims[0];
+                                                 canvas.height = chart.trimDims[1];
 
-            <Layer ref={(layer) => this.pointsLayer = layer}>
+                                                 // Create plot image for free drawing
+                                                 chart.canvas.createPlotImage("pointsLayer", {
+                                                   stroke: 'green',
+                                                   shadowBlur: 5
+                                                 });
 
-            </Layer>
+                                                 context.strokeStyle = "#df4b26";
+                                                 context.lineWidth = 5;
+                                                 context.lineJoin = "round";
 
-            <Layer ref={(layer) => this.axisLayer = layer}>
-              <Rect {...config.axisBackground} x={this.chartManager.dimensions[0] - this.chartManager.chartMargins[1]}
-                    y={0}
-                    width={this.chartManager.chartMargins[1]}
-                    height={this.chartManager.dimensions[1] - this.chartManager.chartMargins[2]}/>
-              <Line
-                points={[0, this.chartManager.dimensions[1] - this.chartManager.chartMargins[2], this.chartManager.dimensions[0], this.chartManager.dimensions[1] - this.chartManager.chartMargins[2]]}
-                {...config.axisLine}
-              />
-              {
-                this.chartManager.getHorizontalTicks(10).map((tick, index) => {
-                  return (
-                    <Text key={index}
-                          text={tick[0]}
-                          ref={(elem) => this.xTicks.push(elem)}
-                          x={this.chartManager.xScale(tick[0])}
-                          y={tick[1]}
-                          offsetX={10}
-                          offsetY={-20}
-                          {...config.axisTick}
-                    />);
-                })
-              }
-              <Rect {...config.axisBackground} x={0} y={this.chartManager.dimensions[1]}
-                    width={this.chartManager.dimensions[0]} height={this.chartManager.chartMargins[2]}/>
-              <Line
-                points={[this.chartManager.dimensions[0] - this.chartManager.chartMargins[1], 0, this.chartManager.dimensions[0] - this.chartManager.chartMargins[1], this.chartManager.dimensions[1]]}
-                {...config.axisLine}
-              />
-              {
-                this.chartManager.getVerticalTicks(10).map((tick, index) => {
-                  return (
-                    <Text key={index}
-                          text={tick[1]}
-                          ref={(elem) => this.yTicks.push(elem)}
-                          x={tick[0]}
-                          y={this.chartManager.yScale(tick[1])}
-                          offsetX={-20}
-                          offsetY={10}
-                          {...config.axisTick}
-                    />);
-                })
-              }
-            </Layer>
-          </Stage>
+                                                 // Redraw
+                                                 stage.draw();
+
+                                                 this.lastPointerPosition = {
+                                                   x: chart.xScale(0),
+                                                   y: chart.yScale(0)
+                                                 };
+
+                                                 /*
+                                                  Beznákovic dívka, jo, tu mám rád. Při myšlence na ni, chce se mi začít smát...a taky řvát, že po tom všem, znovu ji musím psát,
+                                                  */
+
+                                                 // Prepare signal
+                                                 this.signalH = new Signal(chart.props.xDomain[0], chart.props.xDomain[1]);
+                                                 context.globalCompositeOperation = 'source-over';
+                                                 context.beginPath();
+                                                 context.moveTo(this.lastPointerPosition.x, this.lastPointerPosition.y);
+                                                 this.signalH.values().forEach((point => {
+                                                     context.lineTo(chart.xScale(point[0]), chart.yScale(point[1]));
+                                                   }
+                                                 ));
+                                                 context.closePath();
+                                                 context.stroke();
+                                                 layer.draw();
+                                               }}
+                                               onContentMousemove={(chart) => {
+                                                 if (!this.isPaint) {
+                                                   return;
+                                                 }
+
+                                                 const stage = chart.canvas.stage(),
+                                                   image = chart.getPlotImage(),
+                                                   context = chart.getContext(),
+                                                   layer = chart.canvas.getLayer("pointsLayer");
+
+                                                 let localPos = {
+                                                   x: this.lastPointerPosition.x - image.x(),
+                                                   y: this.lastPointerPosition.y - image.y()
+                                                 };
+                                                 let min = chart.getCordXValue(localPos.x);
+                                                 const pos = stage.getPointerPosition();
+                                                 localPos = {
+                                                   x: pos.x - image.x(),
+                                                   y: pos.y - image.y()
+                                                 };
+                                                 let max = chart.getCordXValue(localPos.x);
+
+                                                 // If user drags from right to left, swap values
+                                                 if (min > max) {
+                                                   const tmp = min;
+                                                   min = max;
+                                                   max = tmp;
+                                                 }
+                                                 // Determine which points to set (handles situation when user drags mouse too fast)
+                                                 const pointsToSet = this.signalH.getPointsInRange(min, max);
+                                                 context.beginPath();
+                                                 // Clear canvas before drawing
+                                                 chart.canvas.clear();
+                                                 // Set the points
+                                                 pointsToSet.forEach(point => this.signalH.setPoint(point[0], chart.getCordYValue(localPos.y)));
+                                                 // Finally render points
+                                                 this.signalH.values().forEach(point =>
+                                                   context.lineTo(chart.xScale(point[0]), chart.yScale(point[1])));
+                                                 context.stroke();
+
+                                                 this.lastPointerPosition = pos;
+                                                 layer.draw();
+                                               }}
+                                               onContentMouseup={(chart) => {
+                                                 this.isPaint = false;
+                                               }}
+                                               onContentMousedown={(chart) => {
+                                                 this.isPaint = true;
+                                                 const pointerPos = chart.canvas.stage().getPointerPosition(),
+                                                   context = chart.canvas.getContext(),
+                                                   layer = chart.canvas.getLayer("pointsLayer");
+
+                                                 // Clear canvas before drawing
+                                                 chart.canvas.clear();
+                                                 context.beginPath();
+                                                 const newPoint = this.signalH.setPoint(chart.getCordXValue(pointerPos.x, 3), chart.getCordYValue(pointerPos.y, 3));
+                                                 this.signalH.setPoint(newPoint[0], newPoint[1]);
+                                                 this.signalH.values().forEach(point =>
+                                                   context.lineTo(chart.xScale(point[0]), chart.yScale(point[1])));
+                                                 context.stroke();
+                                                 layer.draw();
+                                                 this.lastPointerPosition = pointerPos;
+                                               }}
+            />
+            }
+          </div>
+          <div id="output-chart-wrapper" ref={(elem) => this.outputChartWrapper = elem}
+               className={`col-4 ${styles.chartWrapper}`}>
+            {this.outputChartWrapper && <Chart ref={(chart) => this.outputChart = chart}
+                                               wrapper={this.outputChartWrapper}
+                                               width={this.outputChartWrapper.offsetWidth}
+                                               height={this.outputChartWrapper.offsetHeight}
+                                               xDomain={[0, 5]}
+                                               yDomain={[-2, 2]}/>
+            }
+          </div>
+          <div id="input-chart-wrapper" ref={(elem) => this.inputChartWrapper = elem}
+               className={`col-4 ${styles.chartWrapper}`}>
+            {this.inputChartWrapper && <Chart ref={(chart) => this.inputChart = chart}
+                                              wrapper={this.inputChartWrapper}
+                                              width={this.inputChartWrapper.offsetWidth}
+                                              height={this.inputChartWrapper.offsetHeight}
+                                              xDomain={[0, 5]}
+                                              yDomain={[-2, 2]}/>
+            }
+          </div>
+        </div>
+        <div className={`row h-100 ${styles.chartRow}`}>
+          <div id="step-chart-wrapper" ref={(elem) => this.stepChartWrapper = elem}
+               className={`col-12 ${styles.chartWrapper}`}>
+            {this.stepChartWrapper && <Chart ref={(chart) => this.stepChart = chart}
+                                             wrapper={this.stepChartWrapper}
+                                             width={this.stepChartWrapper.offsetWidth}
+                                             height={this.stepChartWrapper.offsetHeight}
+                                             xDomain={[0, 5]}
+                                             yDomain={[-2, 2]}/>
+            }
+          </div>
+        </div>
+        <div className={`row h-100 ${styles.chartRow}`}>
+          <div id="draggable-chart-wrapper" ref={(elem) => this.draggableChartWrapper = elem}
+               className={`col-12 ${styles.chartWrapper}`}>
+            {this.draggableChartWrapper && <Chart ref={(chart) => this.draggableChart = chart}
+                                                  wrapper={this.draggableChartWrapper}
+                                                  width={this.draggableChartWrapper.offsetWidth}
+                                                  height={this.draggableChartWrapper.offsetHeight}
+                                                  xDomain={[0, 5]}
+                                                  yDomain={[-2, 2]}/>
+            }
+          </div>
         </div>
       </div>
     );
