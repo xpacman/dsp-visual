@@ -1,6 +1,8 @@
 /**
  * Created by paco on 7.4.18.
  */
+import React from "react";
+import {Line} from "react-konva";
 
 const Decimal = require('decimal.js-light');
 
@@ -32,6 +34,7 @@ export default class Signal {
       this._values = values;
     }
 
+    this.line = null; // Rendered element of this signal
   }
 
   /**
@@ -116,6 +119,31 @@ export default class Signal {
       }
     });
     return index;
+  }
+
+  /**
+   * Returns this signal rendered as Konva Line
+   * @param config object props to be passed to Konva Line
+   * @param xFunc function to process each x value
+   * @param yFunc function to process each y value
+   */
+  render(config = {}, xFunc = (x) => x, yFunc = (y) => y) {
+
+    // Prepare points for rendering
+    const points = [];
+    this.values().map(point => {
+      points.push(xFunc(point[0]));
+      points.push(yFunc(point[1]));
+    });
+
+    // If signal was update its props
+    if (this.line) {
+      this.line.attrs.points = points;
+    }
+
+    return (
+      <Line {...config} ref={(line) => this.line = line} points={points}/>
+    )
   }
 
 }

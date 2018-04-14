@@ -8,7 +8,6 @@ import * as config from "../config";
 import {Stage, Layer, Rect, Line, Text, Group, Circle} from "react-konva";
 import {scaleLinear, scaleBand, ticks} from 'd3-scale';
 import Konva from "konva";
-import Canvas from "../partials/Canvas";
 import {arrayEquals} from "../utils/utils";
 
 export default class Chart extends React.Component {
@@ -33,15 +32,13 @@ export default class Chart extends React.Component {
     // y axis values [min, max]
     yDomain: PropTypes.array,
     // Children to be displayed in the plot area
-    children: PropTypes.any,
-    // Render callback
-    onContentRender: PropTypes.func,
+    children: PropTypes.oneOfType([PropTypes.func, PropTypes.element]),
     // Content click callback
     onContentMousedown: PropTypes.func,
     // Content mouse up callback
     onContentMouseup: PropTypes.func,
-    // Content mouse move callback
-    onContentMousemove: PropTypes.func,
+    // Content mouse drag callback
+    onContentMousedrag: PropTypes.func,
   };
 
   static defaultProps = {
@@ -61,35 +58,58 @@ export default class Chart extends React.Component {
     this.yScale = null;
     this.rescale(props);
 
+    // Is mouse dragging
+    this.isDragging = false;
+
     // Trimmed dimensions (including margins) -> [trimmed width, trimmed height]
     this.trimDims = [props.width - props.margins[1] - props.margins[3], props.height - props.margins[0] - props.margins[2]];
+
+    // Last pointer position
+    this.lastPointerPosition = null;
+    // Current pointer position
+    this.pointerPosition = null;
 
     // Refs
     this.xTicks = []; // X Ticks refs
     this.yTicks = []; // Y Ticks refs
-    this.canvas = new Canvas(props.wrapper, [props.width, props.height]);
+    this.canvas = {
+      stage: null,
+      layers: []
+    }; // Canvas refs holder
   }
 
   componentDidMount() {
-    // On render callback
-    this.props.onContentRender && this.props.onContentRender(this);
+
+    // Delayed mount of konva components
+    this.forceUpdate();
 
     // On mouse click callback
-    if (this.props.onContentMousedown && this.canvas) {
-      this.canvas.stage().on("contentMousedown.proto", () => {
-        this.props.onContentMousedown(this);
-      })
-    }
+    if (this.canvas.stage) {
+      this.canvas.stage.getStage().on("contentMousedown.proto", () => {
+        this.isDragging = true;
+        this.lastPointerPosition = this.getPointerPosition();
+        this.pointerPosition = this.getPointerPosition();
 
-    if (this.props.onContentMouseup && this.canvas) {
-      this.canvas.stage().on("contentMouseup.proto", () => {
-        this.props.onContentMouseup(this);
-      })
-    }
+        return this.props.onContentMousedown && this.props.onContentMousedown(this);
+      });
 
-    if (this.props.onContentMousemove && this.canvas) {
-      this.canvas.stage().on("contentMousemove.proto", () => {
-        this.props.onContentMousemove(this);
+      // On mouse up callback
+      this.canvas.stage.getStage().on("contentMouseup.proto", () => {
+        this.isDragging = false;
+        this.lastPointerPosition = this.getPointerPosition();
+        this.pointerPosition = this.getPointerPosition();
+
+        return this.props.onContentMouseup && this.props.onContentMouseup(this);
+      });
+
+      // Mouse dragging callback
+      this.canvas.stage.getStage().on("contentMousemove.proto", () => {
+        if (!this.isDragging) {
+          return;
+        }
+        this.pointerPosition = this.getPointerPosition();
+
+        return this.props.onContentMousedrag && this.props.onContentMousedrag(this);
       })
     }
   }
@@ -106,18 +126,33 @@ export default class Chart extends React.Component {
   }
 
   /**
+   * Returns pointer position on chart working area.
+   */
+  getPointerPosition() {
+    if (!this.canvas.stage) {
+      return
+    }
+
+    const pos = this.canvas.stage.getStage().getPointerPosition();
+
+    if (pos.x > this.trimDims[0]) {
+      pos.x = this.trimDims[0]
+    }
+
+    if (pos.y > this.trimDims[1]) {
+      pos.y = this.trimDims[1]
+    }
+
+    return pos;
+  }
+
+  /**
    * Generates new scales for dimensions, range and domain properties
    * @param config object
    */
   rescale(config = {}) {
     const conf = {...this.props, ...config};
     this.trimDims = [conf.width - conf.margins[1] - conf.margins[3], conf.height - conf.margins[0] - conf.margins[2]];
-    const plotImage = this.getPlotImage();
-    // If plot image exists -> rescale it also
-    if (plotImage) {
-      plotImage.width(this.trimDims[0]);
-      plotImage.height(this.trimDims[1]);
-    }
 
     // D3 scales
     this.xScale = scaleLinear()
@@ -126,34 +161,6 @@ export default class Chart extends React.Component {
     this.yScale = scaleLinear()
       .range(conf.yRange ? conf.yRange : [this.trimDims[1], 0])
       .domain(conf.yDomain);
-  }
-
-  getCanvas() {
-    if (!this.canvas) {
-      return null;
-    }
-    return this.canvas.getCanvas();
-  }
-
-  getStage() {
-    if (!this.canvas) {
-      return null;
-    }
-    return this.canvas.stage();
-  }
-
-  getContext() {
-    if (!this.canvas) {
-      return null;
-    }
-    return this.canvas.getContext();
-  }
-
-  getPlotImage() {
-    if (!this.canvas) {
-      return null;
-    }
-    return this.canvas.getPlotImage();
   }
 
   /**
@@ -234,26 +241,16 @@ export default class Chart extends React.Component {
 
   render() {
     const {wrapper, width, height, margins, tickMargins, xDomain, xRange, yDomain, yRange, children} = this.props;
-
     return (
       <div onMouseMove={() => {
         // Crosshairs handling
-        if (this.canvas.layers().crosshairsLayer !== null && this.canvas.stage() !== null) {
-          const cursorPosition = this.canvas.stage().getPointerPosition();
+        if (this.canvas.layers && this.canvas.layers.crosshairsLayer && this.canvas.stage !== null) {
+          const cursorPosition = this.getPointerPosition();
 
           if (cursorPosition) {
-            // Prevent out of bounds
-            if (cursorPosition.x > this.trimDims[0]) {
-              cursorPosition.x = this.trimDims[0]
-            }
-
-            if (cursorPosition.y > this.trimDims[1]) {
-              cursorPosition.y = this.trimDims[1]
-            }
-
             // Crosshair line and text are grouped for synchronized moving
-            const xCrosshairGroup = this.canvas.getLayer("crosshairsLayer").getChildren()[0];
-            const yCrosshairGroup = this.canvas.getLayer("crosshairsLayer").getChildren()[1];
+            const xCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[0];
+            const yCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[1];
             xCrosshairGroup.setAttr("x", cursorPosition.x);
             yCrosshairGroup.setAttr("y", cursorPosition.y);
             const xText = xCrosshairGroup.getChildren()[1];
@@ -261,7 +258,7 @@ export default class Chart extends React.Component {
             const yText = yCrosshairGroup.getChildren()[1];
             yText.setAttr("x", this.trimDims[0] + 30);
             yText.setAttr("text", this.getCordYValue(yCrosshairGroup.getPosition().y, 2));
-            this.canvas.getLayer("crosshairsLayer").batchDraw();
+            this.canvas.layers.crosshairsLayer.batchDraw();
 
             this.xTicks.map((tick, index) => {
               // Crosshair is overlapping tick -> hide tick
@@ -291,14 +288,14 @@ export default class Chart extends React.Component {
               }
             });
 
-            this.canvas.getLayer("axisLayer").batchDraw();
+            this.canvas.layers.axisLayer.batchDraw();
           }
         }
       }}>
-        <Stage ref={(stage) => this.canvas.stage(stage)}
+        <Stage ref={(stage) => this.canvas.stage = stage}
                width={width}
                height={height}>
-          <Layer ref={(layer) => this.canvas.addLayer("gridLayer", layer)}>
+          <Layer ref={(layer) => this.canvas.layers["gridLayer"] = layer}>
             {
               this.getHorizontalGrid(10).map((grid, index) => {
                 return (
@@ -319,7 +316,7 @@ export default class Chart extends React.Component {
             }
           </Layer>
 
-          <Layer ref={(layer) => this.canvas.addLayer("crosshairsLayer", layer)}>
+          <Layer ref={(layer) => this.canvas.layers["crosshairsLayer"] = layer}>
             <Group x={0}
                    y={0}>
               <Line points={[0, 0, 0, this.trimDims[1]]}
@@ -346,11 +343,11 @@ export default class Chart extends React.Component {
             </Group>
           </Layer>
 
-          <Layer ref={(layer) => this.canvas.addLayer("pointsLayer", layer)}>
-            {children && children}
+          <Layer ref={(layer) => this.canvas.layers["pointsLayer"] = layer}>
+            {children && typeof children === "function" && this.canvas.stage ? children(this) : children}
           </Layer>
 
-          <Layer ref={(layer) => this.canvas.addLayer("axisLayer", layer)}>
+          <Layer ref={(layer) => this.canvas.layers["axisLayer"] = layer}>
             <Line
               points={[0, this.trimDims[1], this.trimDims[0], this.trimDims[1]]}
               {...config.axisLine}

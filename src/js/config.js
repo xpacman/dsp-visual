@@ -59,5 +59,15 @@ module.exports = {
     textAlign: "start",
     textBaseline: "alphabetic"
   },
-  convolutionHChart: {}
+  convolutionKernelChart: {
+    line: {
+      stroke: "#df4b26",
+      lineWidth: 5,
+      lineJoin: "round"
+    },
+    canvasImage: {
+      stroke: "green",
+      shadowBlur: 5
+    }
+  }
 };
