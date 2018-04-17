@@ -6,11 +6,10 @@ import {
 } from "reactstrap";
 import styles from "./interpolation.scss";
 import Signals from "../../utils/Signals";
-import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from "../../components";
+import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem, Chart} from "../../components";
 import {Line, Group, Circle} from "react-konva";
 import {max, min} from "d3-array";
 import InterpolationEngine from "../../utils/InterpolationEngine";
-import Chart from "../../partials/Chart";
 import config from "../../config";
 import Konva from "konva";
 

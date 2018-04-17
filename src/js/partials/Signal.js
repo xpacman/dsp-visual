@@ -1,9 +1,6 @@
 /**
  * Created by paco on 7.4.18.
  */
-import React from "react";
-import {Line} from "react-konva";
-
 const Decimal = require('decimal.js-light');
 
 export default class Signal {
@@ -13,14 +10,15 @@ export default class Signal {
    * @param xMax number maximum of x domain
    * @param step number sample step optional
    * @param values Array of arrays of values to set [ [x0, y0], ... ] optional
-   * @param func function to apply for each x value optional (default y value is zero)
+   * @param func function to apply for each x value optional (default null means input equals to output)
+   * @param timeOffset number offset in time optional (default is zero)
    */
-  constructor(xMin, xMax, step = 0.01, values = null, func = x => 0) {
+  constructor(xMin, xMax, step = 0.01, values = null, func = null, timeOffset = 0) {
 
     // Signal values array
     this._values = [];
     // Function used to generate values
-    this.func = func;
+    this.func = func ? func : x => 0;
 
     // If values are not set -> generate them
     if (!values) {
@@ -28,24 +26,38 @@ export default class Signal {
       xMax = new Decimal(xMax);
 
       for (let i = new Decimal(xMin); i.lessThanOrEqualTo(xMax); i = i.plus(step)) {
-        this._values.push([i.toFixed(2), func(i.toFixed(2))]);
+
+        this._values.push([i.toFixed(2), this.func(i.toFixed(2))]);
       }
     } else {
       this._values = values;
     }
-
-    this.line = null; // Rendered element of this signal
+    this._timeOffset = timeOffset;
   }
 
   /**
    * Gets or sets signal values
    * @param values array of arrays [[x0, y0], ...]
+   * @param withOffset whether or not to take current time offset
    * @return {Signal.values}
    */
-  values(values = null) {
+  values(values = null, withOffset = false) {
     if (!values) {
-      return this._values;
+
+      // Dont forget current time offset
+      if (this.timeOffset() !== 0 && withOffset) {
+        const ret = [],
+          offset = new Decimal(this.timeOffset());
+        this._values.forEach(point => {
+          ret.push([((new Decimal(point[0])).plus(offset)).toFixed(2), point[1]]);
+        });
+        // Return offseted values
+        return ret;
+      } else {
+        return this._values;
+      }
     }
+
     return this._values = values;
   }
 
@@ -67,8 +79,16 @@ export default class Signal {
    * @return {Array.<[[x, y],...]>} points in range
    */
   getPointsInRange(xMin, xMax) {
-    const minIndex = this._values.indexOf(this.getPoint(xMin));
-    const maxIndex = this._values.indexOf(this.getPoint(xMax));
+    let minIndex = this._values.indexOf(this.getPoint(xMin)),
+      maxIndex = this._values.indexOf(this.getPoint(xMax));
+
+    // In case of negative values on x axis, we have to swap values
+    if (minIndex > maxIndex) {
+      const tmp = minIndex;
+      minIndex = maxIndex;
+      maxIndex = tmp;
+    }
+
     return this._values.slice(minIndex, maxIndex);
   }
 
@@ -122,28 +142,17 @@ export default class Signal {
   }
 
   /**
-   * Returns this signal rendered as Konva Line
-   * @param config object props to be passed to Konva Line
-   * @param xFunc function to process each x value
-   * @param yFunc function to process each y value
+   * Gets or sets time offset for this signal
+   * @param offset
+   * @return {*}
    */
-  render(config = {}, xFunc = (x) => x, yFunc = (y) => y) {
+  timeOffset(offset) {
 
-    // Prepare points for rendering
-    const points = [];
-    this.values().map(point => {
-      points.push(xFunc(point[0]));
-      points.push(yFunc(point[1]));
-    });
-
-    // If signal was update its props
-    if (this.line) {
-      this.line.attrs.points = points;
+    if (!offset) {
+      return this._timeOffset;
     }
 
-    return (
-      <Line {...config} ref={(line) => this.line = line} points={points}/>
-    )
+    return this._timeOffset = offset;
   }
 
 }

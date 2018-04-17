@@ -4,11 +4,11 @@
 
 import React from "react";
 import PropTypes from 'prop-types';
-import * as config from "../config";
+import * as config from "../../config";
 import {Stage, Layer, Rect, Line, Text, Group, Circle} from "react-konva";
 import {scaleLinear, scaleBand, ticks} from 'd3-scale';
 import Konva from "konva";
-import {arrayEquals} from "../utils/utils";
+import {arrayEquals} from "../../utils/utils";
 
 export default class Chart extends React.Component {
 
@@ -31,8 +31,12 @@ export default class Chart extends React.Component {
     yRange: PropTypes.array,
     // y axis values [min, max]
     yDomain: PropTypes.array,
+    // Datas for chart -> {dataset name: [array of points]}
+    datasets: PropTypes.object,
+    // Config object for datasets {dataset name: {Konva Element konfigs}}
+    config: PropTypes.object,
     // Children to be displayed in the plot area
-    children: PropTypes.oneOfType([PropTypes.func, PropTypes.element]),
+    children: PropTypes.oneOfType([PropTypes.func, PropTypes.element, PropTypes.array, PropTypes.object]),
     // Content click callback
     onContentMousedown: PropTypes.func,
     // Content mouse up callback
@@ -47,7 +51,9 @@ export default class Chart extends React.Component {
     margins: [0, 75, 55, 0],
     xDomain: [0, 1],
     yDomain: [0, 1],
-    tickMargins: {x: [0, 20], y: [20, 0]}
+    tickMargins: {x: [0, 20], y: [20, 0]},
+    datasets: {},
+    config: {}
   };
 
   constructor(props) {
@@ -76,6 +82,9 @@ export default class Chart extends React.Component {
       stage: null,
       layers: []
     }; // Canvas refs holder
+    // Konva lines
+    this.dataLines = [];
+    this._datasets = props.datasets;
   }
 
   componentDidMount() {
@@ -110,11 +119,13 @@ export default class Chart extends React.Component {
         this.pointerPosition = this.getPointerPosition();
 
         return this.props.onContentMousedrag && this.props.onContentMousedrag(this);
-      })
+      });
     }
   }
 
   componentWillReceiveProps(nextProps) {
+    // TODO: HANDLE DATASET PROPS CHANGE
+
     // If dimensions, range, or domain changed anyhow -> rescale
     if (this.props.width !== nextProps.width || this.props.height !== nextProps.height ||
       ((this.props.xRange || nextProps.xRange) && !arrayEquals(this.props.xRange, nextProps.xRange)) ||
@@ -239,8 +250,59 @@ export default class Chart extends React.Component {
     return (this.props.yDomain[1] - value).toFixed(precision);
   }
 
+  /**
+   * Gets or sets dataset points, scaled by functions supplied in parameters
+   * @param dataset string dataset name
+   * @param points array of arrays [[x0, y0],...] points
+   * @param xFunc function to apply to each x value
+   * @param yFunc function to apply to each y value
+   * @return {Array}
+   */
+  datasetPoints(dataset, points = null, xFunc = this.xScale, yFunc = this.yScale) {
+    // Prepare points for rendering
+    let _points = [];
+
+    // Points not set, get current dataset points
+    if (!points) {
+
+      if (!this._datasets[dataset]) {
+        return console.log("Invalid dataset!");
+      }
+
+      this._datasets[dataset].forEach(point => {
+        _points.push(xFunc(point[0]));
+        _points.push(yFunc(point[1]));
+      });
+
+      // Return renderable dataset points
+      return _points;
+    }
+
+    // Points are set, set dataset points
+    this._datasets[dataset] = points;
+    _points = this.datasetPoints(dataset);
+    // Update visual signal
+    this.dataLines[dataset].attrs.points = _points;
+    this.canvas.layers.pointsLayer.batchDraw();
+    return _points;
+  }
+
+  /**
+   * Returns Konva config for dataset. Will fallback to default configs if not found.
+   * @param dataset string name of the dataset
+   * @return {*}
+   */
+  getDatasetConfig(dataset) {
+    if (this.props.config[dataset]) {
+      return this.props.config[dataset]
+    }
+
+    return config.signalLine.line
+  }
+
   render() {
-    const {wrapper, width, height, margins, tickMargins, xDomain, xRange, yDomain, yRange, children} = this.props;
+    const {wrapper, width, height, margins, tickMargins, datasets, xDomain, xRange, yDomain, yRange, children} = this.props;
+
     return (
       <div onMouseMove={() => {
         // Crosshairs handling
@@ -316,35 +378,13 @@ export default class Chart extends React.Component {
             }
           </Layer>
 
-          <Layer ref={(layer) => this.canvas.layers["crosshairsLayer"] = layer}>
-            <Group x={0}
-                   y={0}>
-              <Line points={[0, 0, 0, this.trimDims[1]]}
-                    {...config.crosshairLine}
-                    name="xCrosshair"
-              />
-              <Text text={""}
-                    x={tickMargins.x[0]}
-                    y={this.trimDims[1] + tickMargins.x[1]}
-                    {...config.crosshairText}
-              />
-            </Group>
-            <Group x={0}
-                   y={0}>
-              <Line points={[0, 0, this.trimDims[0], 0]}
-                    {...config.crosshairLine}
-                    name="yCrosshair"
-              />
-              <Text text={""}
-                    x={tickMargins.y[0]}
-                    y={tickMargins.y[1] - 5}
-                    {...config.crosshairText}
-              />
-            </Group>
-          </Layer>
-
           <Layer ref={(layer) => this.canvas.layers["pointsLayer"] = layer}>
-            {children && typeof children === "function" && this.canvas.stage ? children(this) : children}
+            {
+              Object.keys(datasets).map(key => {
+                return <Line key={key} ref={(line) => this.dataLines[key] = line} {...this.getDatasetConfig(key)}
+                             points={this.datasetPoints(key)}/>
+              })
+            }
           </Layer>
 
           <Layer ref={(layer) => this.canvas.layers["axisLayer"] = layer}>
@@ -376,28 +416,52 @@ export default class Chart extends React.Component {
               points={[this.trimDims[0], 0, this.trimDims[0], this.trimDims[1]]}
               {...config.axisLine}
             />
+            <Rect {...config.axisBackground} x={this.trimDims[0]} y={0}
+                  width={margins[1]} height={this.trimDims[1]}/>
             {
               this.getVerticalTicks(10).map((tick, index) => {
                 return (
-                  <Group key={index} x={tick[0]} y={this.yScale(tick[1])} ref={(elem) => this.yTicks.push(elem)}>
-                    <Rect x={10}
-                          y={-5}
-                          width={40}
-                          height={10}
-                          fill={config.axisBackground}
-                    />
-                    <Text text={tick[1].toFixed(2)}
-                          x={0}
-                          y={0}
-                          offsetX={-20}
-                          offsetY={5}
-                          {...config.axisTick}
-                    />
-                  </Group>
+                  <Text key={index}
+                        text={tick[1].toFixed(2)}
+                        ref={(elem) => this.yTicks.push(elem)}
+                        x={tick[0]}
+                        y={this.yScale(tick[1])}
+                        offsetX={-20}
+                        offsetY={5}
+                        {...config.axisTick}
+                  />
                 );
               })
             }
           </Layer>
+
+          <Layer ref={(layer) => this.canvas.layers["crosshairsLayer"] = layer}>
+            <Group x={0}
+                   y={0}>
+              <Line points={[0, 0, 0, this.trimDims[1]]}
+                    {...config.crosshairLine}
+                    name="xCrosshair"
+              />
+              <Text text={""}
+                    x={tickMargins.x[0]}
+                    y={this.trimDims[1] + tickMargins.x[1]}
+                    {...config.crosshairText}
+              />
+            </Group>
+            <Group x={0}
+                   y={0}>
+              <Line points={[0, 0, this.trimDims[0], 0]}
+                    {...config.crosshairLine}
+                    name="yCrosshair"
+              />
+              <Text text={""}
+                    x={tickMargins.y[0]}
+                    y={tickMargins.y[1] - 5}
+                    {...config.crosshairText}
+              />
+            </Group>
+          </Layer>
+
         </Stage>
       </div>
     )

@@ -1,6 +1,7 @@
 module.exports = {
   crosshairLine: {
-    stroke: "#292b2c"
+    stroke: "#292b2c",
+    opacity: 0.5
   },
   crosshairText: {
     fill: "#999999",
@@ -10,7 +11,7 @@ module.exports = {
   },
   axisTickLine: {
     stroke: "#292b2c",
-    strokeWidth: 1
+    strokeWidth: 1,
   },
   axisTick: {
     fill: "#999999",
@@ -22,7 +23,7 @@ module.exports = {
     strokeWidth: 1
   },
   axisBackground: {
-    fill: "black"
+    fill: "#000"
   },
   pointCross: {
     stroke: "white"
@@ -64,10 +65,21 @@ module.exports = {
       stroke: "#df4b26",
       lineWidth: 5,
       lineJoin: "round"
+    }
+  },
+  convolutionInputChart: {
+    line: {
+      stroke: "#DFB126",
+      lineWidth: 5,
+      lineJoin: "round"
+    }
+  },
+  scroller: {
+    scroller: {
+      fill: "#17191E"
     },
-    canvasImage: {
-      stroke: "green",
-      shadowBlur: 5
+    handle: {
+      fill: "#565A66"
     }
   }
 };

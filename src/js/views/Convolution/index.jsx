@@ -6,11 +6,10 @@ import {
 } from "reactstrap";
 import styles from "./convolution.scss";
 import Signals from "../../utils/Signals";
-import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from "../../components";
+import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem, Chart, Scroller} from "../../components";
 import {Line, Text, Group, Image} from "react-konva";
 import {max, min} from "d3-array";
 import Signal from "../../partials/Signal";
-import Chart from "../../partials/Chart";
 import config from "../../config";
 import Konva from "konva";
 
@@ -32,8 +31,9 @@ export default class Convolution extends React.Component {
     };
 
     // Signals
-    this.signalH = new Signal(0, 5); // Kernel signal
-    this.signalX = null; // Input signal
+    this.timeDomain = [-10, 10]; // Time domain for signals
+    this.signalH = new Signal(-2, 2); // Kernel signal
+    this.signalX = new Signal(-2, 2, 0.01, null, null, this.timeDomain[0]); // Input signal
     this.signalOutput = null; // Output (result) signal
 
     // Refs
@@ -43,6 +43,7 @@ export default class Convolution extends React.Component {
     this.outputChartWrapper = null; // Output Chart wrapper ref
     this.stepChartWrapper = null; // Step Chart wrapper ref
     this.draggableChartWrapper = null; // Draggable Chart wrapper ref
+    this.draggableChart = null; // Draggable Chart
   }
 
   componentDidMount() {
@@ -60,6 +61,16 @@ export default class Convolution extends React.Component {
 
   setSignalPreset(signal) {
     this.setState({inputValues: Signals.generateSinSignal()})
+  }
+
+  /**
+   * Handles scroller move
+   * @param position number percentual position of x
+   **/
+  moveScroller(position) {
+    // Set time offset of signal
+    this.signalX.timeOffset((position * (this.timeDomain[1] - this.timeDomain[0]) / 100) + this.timeDomain[0]);
+    this.draggableChart.datasetPoints("inputSignal", this.signalX.values(null, true));
   }
 
   render() {
@@ -142,15 +153,69 @@ export default class Convolution extends React.Component {
         </Navbar>
 
         <div className={`row h-100 ${styles.chartRow}`}>
+          <div id="input-chart-wrapper" ref={(elem) => this.inputChartWrapper = elem}
+               className={`col-4 ${styles.chartWrapper}`}>
+            {this.inputChartWrapper && <Chart ref={(chart) => this.inputChart = chart}
+                                              wrapper={this.inputChartWrapper}
+                                              width={this.inputChartWrapper.offsetWidth}
+                                              height={this.inputChartWrapper.offsetHeight}
+                                              xDomain={[-2, 2]}
+                                              yDomain={[-2, 2]}
+                                              datasets={{inputSignal: this.signalX.values()}}
+                                              config={{inputSignal: config.convolutionInputChart.line}}
+                                              onContentMousedrag={(chart) => {
+                                                /*
+                                                 Beznákovic dívka, jo, tu mám rád. Při myšlence na ni, chce se mi začít smát...a taky řvát, že po tom všem, znovu ji musím psát,
+                                                 */
+                                                let min = chart.getCordXValue(chart.lastPointerPosition.x);
+                                                let max = chart.getCordXValue(chart.pointerPosition.x);
+                                                // If user drags from right to left, swap values
+                                                if (min > max) {
+                                                  const tmp = min;
+                                                  min = max;
+                                                  max = tmp;
+                                                }
+                                                // Determine which points to set (handles situation when user drags mouse too fast)
+                                                const pointsToSet = this.signalX.getPointsInRange(min, max);
+                                                // Set the points
+                                                pointsToSet.forEach(point => this.signalX.setPoint(point[0], chart.getCordYValue(chart.pointerPosition.y)));
+                                                // Set points for both, input chart and draggable chart
+                                                chart.datasetPoints("inputSignal", this.signalX.values());
+                                                this.draggableChart.datasetPoints("inputSignal", this.signalX.values(null, true));
+                                                chart.lastPointerPosition = chart.pointerPosition;
+                                              }}
+                                              onContentMousedown={(chart) => {
+                                                const pointerPos = chart.pointerPosition,
+                                                  newPoint = this.signalX.setPoint(chart.getCordXValue(pointerPos.x, 3), chart.getCordYValue(pointerPos.y, 3));
+                                                this.signalX.setPoint(newPoint[0], newPoint[1]);
+
+                                                // Set points for both, input chart and draggable chart
+                                                chart.datasetPoints("inputSignal", this.signalX.values());
+                                                this.draggableChart.datasetPoints("inputSignal", this.signalX.values(null, true));
+                                              }}/>
+            }
+          </div>
+
+          <div id="step-chart-wrapper" ref={(elem) => this.outputChartWrapper = elem}
+               className={`col-4 ${styles.chartWrapper}`}>
+            {this.outputChartWrapper && <Chart wrapper={this.outputChartWrapper}
+                                               width={this.outputChartWrapper.offsetWidth}
+                                               height={this.outputChartWrapper.offsetHeight}
+                                               xDomain={[-2, 2]}
+                                               yDomain={[-2, 2]}/>
+            }
+          </div>
+
           <div id="kernel-chart-wrapper" ref={(elem) => this.kernelChartWrapper = elem}
                className={`col-4 ${styles.chartWrapper}`}>
             {this.kernelChartWrapper && <Chart wrapper={this.kernelChartWrapper}
                                                width={this.kernelChartWrapper.offsetWidth}
                                                height={this.kernelChartWrapper.offsetHeight}
-                                               xDomain={[0, 5]}
+                                               xDomain={[-2, 2]}
                                                yDomain={[-2, 2]}
+                                               datasets={{kernelSignal: this.signalH.values()}}
+                                               config={{kernelSignal: config.convolutionKernelChart.line}}
                                                onContentMousedrag={(chart) => {
-                                                 const layer = chart.canvas.layers.pointsLayer;
                                                  // TODO: CHECK IF SUBSTRACTING GIVES RELEVANT VALUES (AFTER RESIZING)
                                                  let min = chart.getCordXValue(chart.lastPointerPosition.x);
                                                  let max = chart.getCordXValue(chart.pointerPosition.x);
@@ -165,56 +230,31 @@ export default class Convolution extends React.Component {
                                                  const pointsToSet = this.signalH.getPointsInRange(min, max);
                                                  // Set the points
                                                  pointsToSet.forEach(point => this.signalH.setPoint(point[0], chart.getCordYValue(chart.pointerPosition.y)));
-                                                 // Finally render points
-                                                 this.signalH.render({}, chart.xScale, chart.yScale);
-                                                 layer.batchDraw();
+                                                 // Set points for both, kernel chart and draggable chart
+                                                 chart.datasetPoints("kernelSignal", this.signalH.values());
+                                                 this.draggableChart.datasetPoints("kernelSignal", this.signalH.values());
                                                  chart.lastPointerPosition = chart.pointerPosition;
                                                }}
                                                onContentMousedown={(chart) => {
                                                  const pointerPos = chart.pointerPosition,
-                                                   layer = chart.canvas.layers.pointsLayer,
                                                    newPoint = this.signalH.setPoint(chart.getCordXValue(pointerPos.x, 3), chart.getCordYValue(pointerPos.y, 3));
                                                  this.signalH.setPoint(newPoint[0], newPoint[1]);
-                                                 this.signalH.render({}, chart.xScale, chart.yScale);
-                                                 layer.batchDraw();
-                                               }}>
-              {(chart) => {
-                /*
-                 Beznákovic dívka, jo, tu mám rád. Při myšlence na ni, chce se mi začít smát...a taky řvát, že po tom všem, znovu ji musím psát,
-                 */
-                return (
-                  // Signal should prossibly be react component...
-                  this.signalH.render(config.convolutionKernelChart.line, chart.xScale, chart.yScale))
-              }}
-            </Chart>
+
+                                                 // Set points for both, kernel chart and draggable chart
+                                                 chart.datasetPoints("kernelSignal", this.signalH.values());
+                                                 this.draggableChart.datasetPoints("kernelSignal", this.signalH.values());
+                                               }}/>
             }
           </div>
-          <div id="output-chart-wrapper" ref={(elem) => this.outputChartWrapper = elem}
-               className={`col-4 ${styles.chartWrapper}`}>
-            {this.outputChartWrapper && <Chart wrapper={this.outputChartWrapper}
-                                               width={this.outputChartWrapper.offsetWidth}
-                                               height={this.outputChartWrapper.offsetHeight}
-                                               xDomain={[0, 5]}
-                                               yDomain={[-2, 2]}/>
-            }
-          </div>
-          <div id="input-chart-wrapper" ref={(elem) => this.inputChartWrapper = elem}
-               className={`col-4 ${styles.chartWrapper}`}>
-            {this.inputChartWrapper && <Chart wrapper={this.inputChartWrapper}
-                                              width={this.inputChartWrapper.offsetWidth}
-                                              height={this.inputChartWrapper.offsetHeight}
-                                              xDomain={[0, 5]}
-                                              yDomain={[-2, 2]}/>
-            }
-          </div>
+
         </div>
         <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="step-chart-wrapper" ref={(elem) => this.stepChartWrapper = elem}
+          <div id="output-chart-wrapper" ref={(elem) => this.stepChartWrapper = elem}
                className={`col-12 ${styles.chartWrapper}`}>
             {this.stepChartWrapper && <Chart wrapper={this.stepChartWrapper}
                                              width={this.stepChartWrapper.offsetWidth}
                                              height={this.stepChartWrapper.offsetHeight}
-                                             xDomain={[0, 5]}
+                                             xDomain={[-2, 2]}
                                              yDomain={[-2, 2]}/>
             }
           </div>
@@ -222,12 +262,31 @@ export default class Convolution extends React.Component {
         <div className={`row h-100 ${styles.chartRow}`}>
           <div id="draggable-chart-wrapper" ref={(elem) => this.draggableChartWrapper = elem}
                className={`col-12 ${styles.chartWrapper}`}>
-            {this.draggableChartWrapper && <Chart wrapper={this.draggableChartWrapper}
+            {this.draggableChartWrapper && <Chart ref={(chart) => this.draggableChart = chart}
+                                                  wrapper={this.draggableChartWrapper}
                                                   width={this.draggableChartWrapper.offsetWidth}
                                                   height={this.draggableChartWrapper.offsetHeight}
-                                                  xDomain={[0, 5]}
-                                                  yDomain={[-2, 2]}/>
+                                                  xDomain={this.timeDomain}
+                                                  yDomain={[-2, 2]}
+                                                  datasets={{
+                                                    inputSignal: this.signalX.values(null, true),
+                                                    kernelSignal: this.signalH.values()
+                                                  }}
+                                                  config={{
+                                                    inputSignal: config.convolutionInputChart.line,
+                                                    kernelSignal: config.convolutionKernelChart.line
+                                                  }}/>
             }
+          </div>
+        </div>
+        <div className={`row ${styles.chartRow}`} style={{height: 100}}>
+          <div className={`col-12 ${styles.chartWrapper}`}>
+            {this.draggableChartWrapper &&
+            <Scroller
+              onScroll={this.moveScroller.bind(this)}
+              precision={3}
+              width={this.draggableChartWrapper.offsetWidth}
+              height={100}/>}
           </div>
         </div>
       </div>
