@@ -6,12 +6,11 @@ import {
 } from "reactstrap";
 import styles from "./convolution.scss";
 import Signals from "../../utils/Signals";
-import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem, Chart, Scroller} from "../../components";
-import {Line, Text, Group, Image} from "react-konva";
+import ConvolutionEngine from "../../utils/ConvolutionEngine";
+import {Chart, Scroller} from "../../components";
 import {max, min} from "d3-array";
 import Signal from "../../partials/Signal";
 import config from "../../config";
-import Konva from "konva";
 
 
 export default class Convolution extends React.Component {
@@ -34,7 +33,7 @@ export default class Convolution extends React.Component {
     this.timeDomain = [-10, 10]; // Time domain for signals
     this.signalH = new Signal(-2, 2); // Kernel signal
     this.signalX = new Signal(-2, 2, 0.01, null, null, this.timeDomain[0]); // Input signal
-    this.signalOutput = null; // Output (result) signal
+    this.signalOutput = new Signal(-1, 1); // Output (result) signal
 
     // Refs
     this.inputValues = null; // Input values ref
@@ -44,6 +43,8 @@ export default class Convolution extends React.Component {
     this.stepChartWrapper = null; // Step Chart wrapper ref
     this.draggableChartWrapper = null; // Draggable Chart wrapper ref
     this.draggableChart = null; // Draggable Chart
+    this.outputChart = null; // Output Chart
+    this.stepChart = null; // Output Chart
   }
 
   componentDidMount() {
@@ -71,6 +72,9 @@ export default class Convolution extends React.Component {
     // Set time offset of signal
     this.signalX.timeOffset((position * (this.timeDomain[1] - this.timeDomain[0]) / 100) + this.timeDomain[0]);
     this.draggableChart.datasetPoints("inputSignal", this.signalX.values(null, true));
+    this.signalOutput = ConvolutionEngine.convolution(this.signalX, this.signalH);
+    this.outputChart.rescale({yDomain: [-50, 50]});
+    this.outputChart.datasetPoints("outputSignal", this.signalOutput.values());
   }
 
   render() {
@@ -182,7 +186,6 @@ export default class Convolution extends React.Component {
                                                 // Set points for both, input chart and draggable chart
                                                 chart.datasetPoints("inputSignal", this.signalX.values());
                                                 this.draggableChart.datasetPoints("inputSignal", this.signalX.values(null, true));
-                                                chart.lastPointerPosition = chart.pointerPosition;
                                               }}
                                               onContentMousedown={(chart) => {
                                                 const pointerPos = chart.pointerPosition,
@@ -196,13 +199,14 @@ export default class Convolution extends React.Component {
             }
           </div>
 
-          <div id="step-chart-wrapper" ref={(elem) => this.outputChartWrapper = elem}
+          <div id="step-chart-wrapper" ref={(elem) => this.stepChartWrapper = elem}
                className={`col-4 ${styles.chartWrapper}`}>
-            {this.outputChartWrapper && <Chart wrapper={this.outputChartWrapper}
-                                               width={this.outputChartWrapper.offsetWidth}
-                                               height={this.outputChartWrapper.offsetHeight}
-                                               xDomain={[-2, 2]}
-                                               yDomain={[-2, 2]}/>
+            {this.stepChartWrapper && <Chart ref={(chart) => this.stepChart = chart}
+                                             wrapper={this.stepChartWrapper}
+                                             width={this.stepChartWrapper.offsetWidth}
+                                             height={this.stepChartWrapper.offsetHeight}
+                                             xDomain={[-2, 2]}
+                                             yDomain={[-2, 2]}/>
             }
           </div>
 
@@ -226,6 +230,7 @@ export default class Convolution extends React.Component {
                                                    min = max;
                                                    max = tmp;
                                                  }
+
                                                  // Determine which points to set (handles situation when user drags mouse too fast)
                                                  const pointsToSet = this.signalH.getPointsInRange(min, max);
                                                  // Set the points
@@ -233,7 +238,6 @@ export default class Convolution extends React.Component {
                                                  // Set points for both, kernel chart and draggable chart
                                                  chart.datasetPoints("kernelSignal", this.signalH.values());
                                                  this.draggableChart.datasetPoints("kernelSignal", this.signalH.values());
-                                                 chart.lastPointerPosition = chart.pointerPosition;
                                                }}
                                                onContentMousedown={(chart) => {
                                                  const pointerPos = chart.pointerPosition,
@@ -249,13 +253,17 @@ export default class Convolution extends React.Component {
 
         </div>
         <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="output-chart-wrapper" ref={(elem) => this.stepChartWrapper = elem}
+          <div id="output-chart-wrapper" ref={(elem) => this.outputChartWrapper = elem}
                className={`col-12 ${styles.chartWrapper}`}>
-            {this.stepChartWrapper && <Chart wrapper={this.stepChartWrapper}
-                                             width={this.stepChartWrapper.offsetWidth}
-                                             height={this.stepChartWrapper.offsetHeight}
-                                             xDomain={[-2, 2]}
-                                             yDomain={[-2, 2]}/>
+            {this.outputChartWrapper && <Chart ref={(chart) => this.outputChart = chart}
+                                               wrapper={this.outputChartWrapper}
+                                               width={this.outputChartWrapper.offsetWidth}
+                                               height={this.outputChartWrapper.offsetHeight}
+                                               xDomain={[0, 800]}
+                                               yDomain={[-10, 10]}
+                                               datasets={{outputSignal: this.signalOutput.values()}}
+                                               config={{outputSignal: config.convolutionOutputChart.line}}
+            />
             }
           </div>
         </div>

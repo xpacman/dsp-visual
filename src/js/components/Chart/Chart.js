@@ -48,7 +48,7 @@ export default class Chart extends React.Component {
   static defaultProps = {
     width: 500,
     height: 500,
-    margins: [0, 75, 55, 0],
+    margins: [20, 75, 50, 20],
     xDomain: [0, 1],
     yDomain: [0, 1],
     tickMargins: {x: [0, 20], y: [20, 0]},
@@ -113,12 +113,23 @@ export default class Chart extends React.Component {
 
       // Mouse dragging callback
       this.canvas.stage.getStage().on("contentMousemove.proto", () => {
+
+        const cursorPosition = this.getPointerPosition();
+
+        // Crosshairs support
+        if (cursorPosition) {
+          this.handleCrosshairsMove(cursorPosition);
+        }
+
+        // Click and drag block
         if (!this.isDragging) {
           return;
         }
-        this.pointerPosition = this.getPointerPosition();
 
-        return this.props.onContentMousedrag && this.props.onContentMousedrag(this);
+        this.pointerPosition = cursorPosition;
+
+        this.props.onContentMousedrag && this.props.onContentMousedrag(this);
+        return this.lastPointerPosition = this.pointerPosition;
       });
     }
   }
@@ -146,12 +157,21 @@ export default class Chart extends React.Component {
 
     const pos = this.canvas.stage.getStage().getPointerPosition();
 
-    if (pos.x > this.trimDims[0]) {
-      pos.x = this.trimDims[0]
+    // Corrections
+    if (pos.x < this.props.margins[3]) {
+      pos.x = this.props.margins[3]
     }
 
-    if (pos.y > this.trimDims[1]) {
-      pos.y = this.trimDims[1]
+    if (pos.y < this.props.margins[0]) {
+      pos.y = this.props.margins[0]
+    }
+
+    if (pos.x > this.trimDims[0] + this.props.margins[3]) {
+      pos.x = this.trimDims[0] + this.props.margins[3]
+    }
+
+    if (pos.y > this.trimDims[1] + this.props.margins[0]) {
+      pos.y = this.trimDims[1] + this.props.margins[0]
     }
 
     return pos;
@@ -175,6 +195,53 @@ export default class Chart extends React.Component {
   }
 
   /**
+   * Will move crosshairs to specific position
+   * @param cursorPosition object {x: number, y: number} position of the cursor
+   */
+  handleCrosshairsMove(cursorPosition) {
+    // Crosshair line and text are grouped for synchronized moving
+    const xCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[0];
+    const yCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[1];
+    xCrosshairGroup.setAttr("x", cursorPosition.x - this.props.margins[3]);
+    yCrosshairGroup.setAttr("y", cursorPosition.y - this.props.margins[0]);
+    const xText = xCrosshairGroup.getChildren()[1];
+    xText.setAttr("text", this.getCordXValue(xCrosshairGroup.getPosition().x + this.props.margins[3], 2));
+    const yText = yCrosshairGroup.getChildren()[1];
+    yText.setAttr("text", this.getCordYValue(yCrosshairGroup.getPosition().y + this.props.margins[0], 2));
+    this.canvas.layers.crosshairsLayer.batchDraw();
+
+    this.xTicks.map((tick, index) => {
+      // Crosshair is overlapping tick -> hide tick
+      if (tick) {
+
+        if (tick.x() >= cursorPosition.x - this.props.margins[3] - 20 && tick.x() <= cursorPosition.x) {
+          this.xTicks[index].visible(false);
+        }
+
+        else {
+          this.xTicks[index].visible(true);
+        }
+      }
+    });
+
+    this.yTicks.map((tick, index) => {
+      // Crosshair is overlapping tick -> hide tick
+      if (tick) {
+
+        if (tick.y() >= cursorPosition.y - this.props.margins[0] - 10 && tick.y() <= cursorPosition.y) {
+          this.yTicks[index].visible(false);
+        }
+
+        else {
+          this.yTicks[index].visible(true);
+        }
+      }
+    });
+
+    this.canvas.layers.axisLayer.batchDraw();
+  }
+
+  /**
    * Generates ticks for x axis
    * @param count Number count of ticks
    * @return {Array} Array of arrays [[x,y],...] positions of ticks
@@ -195,7 +262,7 @@ export default class Chart extends React.Component {
   getHorizontalGrid(count = 10) {
     const ret = [];
     this.xScale.ticks(count).map(tick => {
-      ret.push([tick, this.trimDims[1], tick, this.props.margins[0]])
+      ret.push([tick, this.trimDims[1], tick, 0])
     });
     return ret
   }
@@ -234,7 +301,7 @@ export default class Chart extends React.Component {
    */
   getCordXValue(x, precision = 2) {
     // Value converted from canvas coords
-    const value = (this.props.xDomain[1] - this.props.xDomain[0]) * (100 / (this.trimDims[0]) * x / 100);
+    const value = (this.props.xDomain[1] - this.props.xDomain[0]) * (100 / (this.trimDims[0]) * (x - this.props.margins[3]) / 100);
     return (this.props.xDomain[0] + value).toFixed(precision);
   }
 
@@ -246,7 +313,7 @@ export default class Chart extends React.Component {
    */
   getCordYValue(y, precision = 2) {
     // Value converted from canvas coords
-    const value = (this.props.yDomain[1] - this.props.yDomain[0]) * (100 / (this.trimDims[1]) * y / 100);
+    const value = (this.props.yDomain[1] - this.props.yDomain[0]) * (100 / (this.trimDims[1]) * (y - this.props.margins[0]) / 100);
     return (this.props.yDomain[1] - value).toFixed(precision);
   }
 
@@ -304,166 +371,112 @@ export default class Chart extends React.Component {
     const {wrapper, width, height, margins, tickMargins, datasets, xDomain, xRange, yDomain, yRange, children} = this.props;
 
     return (
-      <div onMouseMove={() => {
-        // Crosshairs handling
-        if (this.canvas.layers && this.canvas.layers.crosshairsLayer && this.canvas.stage !== null) {
-          const cursorPosition = this.getPointerPosition();
-
-          if (cursorPosition) {
-            // Crosshair line and text are grouped for synchronized moving
-            const xCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[0];
-            const yCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[1];
-            xCrosshairGroup.setAttr("x", cursorPosition.x);
-            yCrosshairGroup.setAttr("y", cursorPosition.y);
-            const xText = xCrosshairGroup.getChildren()[1];
-            xText.setAttr("text", this.getCordXValue(xCrosshairGroup.getPosition().x, 2));
-            const yText = yCrosshairGroup.getChildren()[1];
-            yText.setAttr("x", this.trimDims[0] + 30);
-            yText.setAttr("text", this.getCordYValue(yCrosshairGroup.getPosition().y, 2));
-            this.canvas.layers.crosshairsLayer.batchDraw();
-
-            this.xTicks.map((tick, index) => {
-              // Crosshair is overlapping tick -> hide tick
-              if (tick) {
-
-                if (tick.x() >= cursorPosition.x - 30 && tick.x() <= cursorPosition.x + 30) {
-                  this.xTicks[index].visible(false);
-                }
-
-                else {
-                  this.xTicks[index].visible(true);
-                }
-              }
-            });
-
-            this.yTicks.map((tick, index) => {
-              // Crosshair is overlapping tick -> hide tick
-              if (tick) {
-
-                if (tick.y() >= cursorPosition.y - 10 && tick.y() <= cursorPosition.y + 20) {
-                  this.yTicks[index].visible(false);
-                }
-
-                else {
-                  this.yTicks[index].visible(true);
-                }
-              }
-            });
-
-            this.canvas.layers.axisLayer.batchDraw();
+      <Stage ref={(stage) => this.canvas.stage = stage}
+             x={margins[3]}
+             y={margins[0]}
+             width={width}
+             height={height}>
+        <Layer ref={(layer) => this.canvas.layers["gridLayer"] = layer}>
+          {
+            this.getHorizontalGrid(10).map((grid, index) => {
+              return (
+                <Line key={index}
+                      points={[this.xScale(grid[0]), grid[1], this.xScale(grid[2]), grid[3]]}
+                      {...config.axisTickLine}
+                />)
+            })
           }
-        }
-      }}>
-        <Stage ref={(stage) => this.canvas.stage = stage}
-               width={width}
-               height={height}>
-          <Layer ref={(layer) => this.canvas.layers["gridLayer"] = layer}>
-            {
-              this.getHorizontalGrid(10).map((grid, index) => {
-                return (
-                  <Line key={index}
-                        points={[this.xScale(grid[0]), grid[1], this.xScale(grid[2]), grid[3]]}
-                        {...config.axisTickLine}
-                  />)
-              })
-            }
-            {
-              this.getVerticalGrid(10).map((grid, index) => {
-                return (
-                  <Line key={index}
-                        points={[grid[0], this.yScale(grid[1]), grid[2], this.yScale(grid[3])]}
-                        {...config.axisTickLine}
-                  />)
-              })
-            }
-          </Layer>
+          {
+            this.getVerticalGrid(10).map((grid, index) => {
+              return (
+                <Line key={index}
+                      points={[grid[0], this.yScale(grid[1]), grid[2], this.yScale(grid[3])]}
+                      {...config.axisTickLine}
+                />)
+            })
+          }
+        </Layer>
 
-          <Layer ref={(layer) => this.canvas.layers["pointsLayer"] = layer}>
-            {
-              Object.keys(datasets).map(key => {
-                return <Line key={key} ref={(line) => this.dataLines[key] = line} {...this.getDatasetConfig(key)}
-                             points={this.datasetPoints(key)}/>
-              })
-            }
-          </Layer>
+        <Layer ref={(layer) => this.canvas.layers["pointsLayer"] = layer}>
+          {
+            Object.keys(datasets).map(key => {
+              return <Line key={key} ref={(line) => this.dataLines[key] = line} {...this.getDatasetConfig(key)}
+                           points={this.datasetPoints(key)}/>
+            })
+          }
+        </Layer>
 
-          <Layer ref={(layer) => this.canvas.layers["axisLayer"] = layer}>
-            <Line
-              points={[0, this.trimDims[1], this.trimDims[0], this.trimDims[1]]}
-              {...config.axisLine}
+        <Layer ref={(layer) => this.canvas.layers["axisLayer"] = layer}>
+          <Line
+            points={[0, this.trimDims[1], this.trimDims[0], this.trimDims[1]]}
+            {...config.axisLine}
+          />
+          {
+            this.getHorizontalTicks(10).map((tick, index) => {
+              return (
+                <Text key={index}
+                      text={tick[0].toFixed(2)}
+                      ref={(elem) => this.xTicks.push(elem)}
+                      x={this.xScale(tick[0])}
+                      y={tick[1]}
+                      offsetX={10}
+                      offsetY={-20}
+                      {...config.axisTick}
+                />);
+            })
+          }
+          <Rect {...config.axisBackground} x={0} y={height}
+                width={width} height={margins[2]}/>
+          <Line
+            points={[this.trimDims[0], 0, this.trimDims[0], this.trimDims[1]]}
+            {...config.axisLine}
+          />
+          <Rect {...config.axisBackground} x={this.trimDims[0]} y={0}
+                width={margins[1]} height={this.trimDims[1]}/>
+          {
+            this.getVerticalTicks(10).map((tick, index) => {
+              return (
+                <Text key={index}
+                      text={tick[1].toFixed(2)}
+                      ref={(elem) => this.yTicks.push(elem)}
+                      x={tick[0] + tickMargins.y[0]}
+                      y={this.yScale(tick[1])}
+                      offsetY={5}
+                      {...config.axisTick}
+                />
+              );
+            })
+          }
+        </Layer>
+
+        <Layer ref={(layer) => this.canvas.layers["crosshairsLayer"] = layer}>
+          <Group x={0}
+                 y={0}>
+            <Line points={[0, 0, 0, this.trimDims[1]]}
+                  {...config.crosshairLine}
+                  name="xCrosshair"
             />
-            {
-              this.getHorizontalTicks(10).map((tick, index) => {
-                if (index === 0) {
-                  return
-                }
-
-                return (
-                  <Text key={index}
-                        text={tick[0].toFixed(2)}
-                        ref={(elem) => this.xTicks.push(elem)}
-                        x={this.xScale(tick[0])}
-                        y={tick[1]}
-                        offsetX={10}
-                        offsetY={-20}
-                        {...config.axisTick}
-                  />);
-              })
-            }
-            <Rect {...config.axisBackground} x={0} y={height}
-                  width={this.trimDims[0]} height={margins[2]}/>
-            <Line
-              points={[this.trimDims[0], 0, this.trimDims[0], this.trimDims[1]]}
-              {...config.axisLine}
+            <Text text={""}
+                  x={tickMargins.x[0]}
+                  y={this.trimDims[1] + tickMargins.x[1]}
+                  {...config.crosshairText}
             />
-            <Rect {...config.axisBackground} x={this.trimDims[0]} y={0}
-                  width={margins[1]} height={this.trimDims[1]}/>
-            {
-              this.getVerticalTicks(10).map((tick, index) => {
-                return (
-                  <Text key={index}
-                        text={tick[1].toFixed(2)}
-                        ref={(elem) => this.yTicks.push(elem)}
-                        x={tick[0]}
-                        y={this.yScale(tick[1])}
-                        offsetX={-20}
-                        offsetY={5}
-                        {...config.axisTick}
-                  />
-                );
-              })
-            }
-          </Layer>
+          </Group>
+          <Group x={0}
+                 y={0}>
+            <Line points={[0, 0, this.trimDims[0], 0]}
+                  {...config.crosshairLine}
+                  name="yCrosshair"
+            />
+            <Text text={""}
+                  x={this.trimDims[0] + tickMargins.y[0] + 10}
+                  y={tickMargins.y[1] - 5}
+                  {...config.crosshairText}
+            />
+          </Group>
+        </Layer>
 
-          <Layer ref={(layer) => this.canvas.layers["crosshairsLayer"] = layer}>
-            <Group x={0}
-                   y={0}>
-              <Line points={[0, 0, 0, this.trimDims[1]]}
-                    {...config.crosshairLine}
-                    name="xCrosshair"
-              />
-              <Text text={""}
-                    x={tickMargins.x[0]}
-                    y={this.trimDims[1] + tickMargins.x[1]}
-                    {...config.crosshairText}
-              />
-            </Group>
-            <Group x={0}
-                   y={0}>
-              <Line points={[0, 0, this.trimDims[0], 0]}
-                    {...config.crosshairLine}
-                    name="yCrosshair"
-              />
-              <Text text={""}
-                    x={tickMargins.y[0]}
-                    y={tickMargins.y[1] - 5}
-                    {...config.crosshairText}
-              />
-            </Group>
-          </Layer>
-
-        </Stage>
-      </div>
+      </Stage>
     )
   }
 

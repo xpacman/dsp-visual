@@ -74,6 +74,13 @@ module.exports = {
       lineJoin: "round"
     }
   },
+  convolutionOutputChart: {
+    line: {
+      stroke: "#B8D725",
+      lineWidth: 5,
+      lineJoin: "round"
+    }
+  },
   scroller: {
     scroller: {
       fill: "#17191E"

@@ -15,6 +15,10 @@ export default class Signal {
    */
   constructor(xMin, xMax, step = 0.01, values = null, func = null, timeOffset = 0) {
 
+    this.xMin = xMin;
+    this.xMax = xMax;
+    this.step = step;
+
     // Signal values array
     this._values = [];
     // Function used to generate values
@@ -67,8 +71,9 @@ export default class Signal {
    * @return array|undefined
    */
   getPoint(x) {
+    x = new Decimal(x);
     return this._values.find(point => {
-      return point[0] === x
+      return point[0] === x.toFixed(2)
     });
   }
 
@@ -79,6 +84,8 @@ export default class Signal {
    * @return {Array.<[[x, y],...]>} points in range
    */
   getPointsInRange(xMin, xMax) {
+    xMin = xMin < this.xMin ? this.xMin : xMin;
+    xMax = xMax > this.xMax ? this.xMax : xMax;
     let minIndex = this._values.indexOf(this.getPoint(xMin)),
       maxIndex = this._values.indexOf(this.getPoint(xMax));
 
@@ -89,7 +96,11 @@ export default class Signal {
       maxIndex = tmp;
     }
 
-    return this._values.slice(minIndex, maxIndex);
+    if (xMax === this.xMax) {
+      return this._values.slice(minIndex);
+    }
+
+    return this._values.slice(minIndex, maxIndex + 1);
   }
 
   /**
