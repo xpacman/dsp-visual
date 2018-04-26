@@ -10,7 +10,7 @@ import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem} from "../..
 import {Circle, Group, Layer, Line, Rect, Stage, Text} from "react-konva";
 import {max, min} from "d3-array";
 import RegressionEngine from "../../utils/RegressionEngine";
-import {arrayEquals} from "../../utils/utils";
+import {arrayEquals} from "../../utils/ArrayUtils";
 import config from "../../config";
 
 

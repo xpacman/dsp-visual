@@ -7,8 +7,11 @@ import PropTypes from 'prop-types';
 import * as config from "../../config";
 import {Stage, Layer, Rect, Line, Text, Group, Circle} from "react-konva";
 import {scaleLinear, scaleBand, ticks} from 'd3-scale';
+import {range} from 'd3-array';
 import Konva from "konva";
-import {arrayEquals} from "../../utils/utils";
+const Decimal = require('decimal.js-light');
+import Dataset from './Dataset';
+import {arrayEquals, findIndexOfNearest} from "../../utils/ArrayUtils";
 
 export default class Chart extends React.Component {
 
@@ -25,16 +28,16 @@ export default class Chart extends React.Component {
     tickMargins: PropTypes.object,
     // horizontal size of the chart [min, max]
     xRange: PropTypes.array,
+    // X axis steps (crosshairs use this)
+    xStep: PropTypes.number,
     // x axis values [min, max]
     xDomain: PropTypes.array,
     // vertical size of the chart [min, max]
     yRange: PropTypes.array,
     // y axis values [min, max]
     yDomain: PropTypes.array,
-    // Datas for chart -> {dataset name: [array of points]}
+    // Datasets for chart -> {dataset name: {data: [array of points], config: {<Object with Konva config>}}}
     datasets: PropTypes.object,
-    // Config object for datasets {dataset name: {Konva Element konfigs}}
-    config: PropTypes.object,
     // Children to be displayed in the plot area
     children: PropTypes.oneOfType([PropTypes.func, PropTypes.element, PropTypes.array, PropTypes.object]),
     // Content click callback
@@ -43,17 +46,20 @@ export default class Chart extends React.Component {
     onContentMouseup: PropTypes.func,
     // Content mouse drag callback
     onContentMousedrag: PropTypes.func,
+    // Ignore mousedown and mouseup events on this chart
+    clickSafe: PropTypes.bool
   };
 
   static defaultProps = {
     width: 500,
     height: 500,
+    xStep: 0.01,
     margins: [20, 75, 50, 20],
     xDomain: [0, 1],
     yDomain: [0, 1],
     tickMargins: {x: [0, 20], y: [20, 0]},
     datasets: {},
-    config: {}
+    clickSafe: false
   };
 
   constructor(props) {
@@ -62,6 +68,9 @@ export default class Chart extends React.Component {
     // Linear Scales
     this.xScale = null;
     this.yScale = null;
+    // Chart range
+    this.xRange = null;
+    // Resacle will set xScale, yScale, xRange
     this.rescale(props);
 
     // Is mouse dragging
@@ -73,7 +82,7 @@ export default class Chart extends React.Component {
     // Last pointer position
     this.lastPointerPosition = null;
     // Current pointer position
-    this.pointerPosition = null;
+    this.pointerPosition = {x: 0, y: 0};
 
     // Refs
     this.xTicks = []; // X Ticks refs
@@ -82,10 +91,10 @@ export default class Chart extends React.Component {
       stage: null,
       layers: []
     }; // Canvas refs holder
-    // Konva lines
-    this.dataLines = [];
-    this._datasets = props.datasets;
+
+    this._datasets = {};
   }
+
 
   componentDidMount() {
 
@@ -95,6 +104,10 @@ export default class Chart extends React.Component {
     // On mouse click callback
     if (this.canvas.stage) {
       this.canvas.stage.getStage().on("contentMousedown.proto", () => {
+        if (this.props.clickSafe) {
+          return;
+        }
+
         this.isDragging = true;
         this.lastPointerPosition = this.getPointerPosition();
         this.pointerPosition = this.getPointerPosition();
@@ -104,6 +117,10 @@ export default class Chart extends React.Component {
 
       // On mouse up callback
       this.canvas.stage.getStage().on("contentMouseup.proto", () => {
+        if (this.props.clickSafe) {
+          return;
+        }
+
         this.isDragging = false;
         this.lastPointerPosition = this.getPointerPosition();
         this.pointerPosition = this.getPointerPosition();
@@ -118,15 +135,21 @@ export default class Chart extends React.Component {
 
         // Crosshairs support
         if (cursorPosition) {
+
+          if (this.pointerPosition && (Math.abs(this.getCordXValue(this.pointerPosition.x) - this.getCordXValue(cursorPosition.x)) >= this.props.xStep)) {
+            cursorPosition.x = this.xScale(this.xRange[findIndexOfNearest(this.xRange, (x => x), this.getCordXValue(cursorPosition.x))]) + this.props.margins[3];
+          } else {
+            cursorPosition.x = this.pointerPosition.x;
+          }
+
           this.handleCrosshairsMove(cursorPosition);
+          this.pointerPosition = cursorPosition;
         }
 
         // Click and drag block
         if (!this.isDragging) {
           return;
         }
-
-        this.pointerPosition = cursorPosition;
 
         this.props.onContentMousedrag && this.props.onContentMousedrag(this);
         return this.lastPointerPosition = this.pointerPosition;
@@ -184,6 +207,7 @@ export default class Chart extends React.Component {
   rescale(config = {}) {
     const conf = {...this.props, ...config};
     this.trimDims = [conf.width - conf.margins[1] - conf.margins[3], conf.height - conf.margins[0] - conf.margins[2]];
+    this.xRange = range(conf.xDomain[0], conf.xDomain[1] + 1, conf.xStep);
 
     // D3 scales
     this.xScale = scaleLinear()
@@ -200,13 +224,13 @@ export default class Chart extends React.Component {
    */
   handleCrosshairsMove(cursorPosition) {
     // Crosshair line and text are grouped for synchronized moving
-    const xCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[0];
-    const yCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[1];
+    const xCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[0],
+      yCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[1];
     xCrosshairGroup.setAttr("x", cursorPosition.x - this.props.margins[3]);
     yCrosshairGroup.setAttr("y", cursorPosition.y - this.props.margins[0]);
-    const xText = xCrosshairGroup.getChildren()[1];
+    const xText = xCrosshairGroup.getChildren()[1],
+      yText = yCrosshairGroup.getChildren()[1];
     xText.setAttr("text", this.getCordXValue(xCrosshairGroup.getPosition().x + this.props.margins[3], 2));
-    const yText = yCrosshairGroup.getChildren()[1];
     yText.setAttr("text", this.getCordYValue(yCrosshairGroup.getPosition().y + this.props.margins[0], 2));
     this.canvas.layers.crosshairsLayer.batchDraw();
 
@@ -326,45 +350,30 @@ export default class Chart extends React.Component {
    * @return {Array}
    */
   datasetPoints(dataset, points = null, xFunc = this.xScale, yFunc = this.yScale) {
-    // Prepare points for rendering
-    let _points = [];
 
-    // Points not set, get current dataset points
-    if (!points) {
+    if (this._datasets[dataset]) {
 
-      if (!this._datasets[dataset]) {
-        return console.log("Invalid dataset!");
+      // Points not set, get current dataset points
+      if (!points) {
+
+        return this._datasets[dataset].data();
       }
 
-      this._datasets[dataset].forEach(point => {
+      let _points = [];
+
+      // Points are set, set dataset points
+      points.forEach(point => {
         _points.push(xFunc(point[0]));
         _points.push(yFunc(point[1]));
       });
 
+      this._datasets[dataset].data(_points);
+      // Update visual signal
+      this.canvas.layers.pointsLayer.batchDraw();
       // Return renderable dataset points
       return _points;
     }
 
-    // Points are set, set dataset points
-    this._datasets[dataset] = points;
-    _points = this.datasetPoints(dataset);
-    // Update visual signal
-    this.dataLines[dataset].attrs.points = _points;
-    this.canvas.layers.pointsLayer.batchDraw();
-    return _points;
-  }
-
-  /**
-   * Returns Konva config for dataset. Will fallback to default configs if not found.
-   * @param dataset string name of the dataset
-   * @return {*}
-   */
-  getDatasetConfig(dataset) {
-    if (this.props.config[dataset]) {
-      return this.props.config[dataset]
-    }
-
-    return config.signalLine.line
   }
 
   render() {
@@ -400,13 +409,22 @@ export default class Chart extends React.Component {
         <Layer ref={(layer) => this.canvas.layers["pointsLayer"] = layer}>
           {
             Object.keys(datasets).map(key => {
-              return <Line key={key} ref={(line) => this.dataLines[key] = line} {...this.getDatasetConfig(key)}
-                           points={this.datasetPoints(key)}/>
+              return (<Dataset key={key} ref={(set) => this._datasets[key] = set}
+                               y={this.trimDims[1] / 2}
+                               element={datasets[key].element ? datasets[key].element : "line"}
+                               config={datasets[key].config}
+                               data={this.datasetPoints(key, datasets[key].data)}/>)
             })
           }
         </Layer>
 
         <Layer ref={(layer) => this.canvas.layers["axisLayer"] = layer}>
+          <Rect {...config.axisBackground} x={0} y={-margins[0]}
+                width={width} height={margins[0]}/>
+          <Rect {...config.axisBackground} x={-margins[3]} y={0}
+                width={margins[3]} height={height}/>
+          <Rect {...config.axisBackground} x={-margins[3]} y={height - margins[0] - margins[2]}
+                width={width} height={margins[2]}/>
           <Line
             points={[0, this.trimDims[1], this.trimDims[0], this.trimDims[1]]}
             {...config.axisLine}
@@ -425,8 +443,6 @@ export default class Chart extends React.Component {
                 />);
             })
           }
-          <Rect {...config.axisBackground} x={0} y={height}
-                width={width} height={margins[2]}/>
           <Line
             points={[this.trimDims[0], 0, this.trimDims[0], this.trimDims[1]]}
             {...config.axisLine}

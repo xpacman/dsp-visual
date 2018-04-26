@@ -7,4 +7,5 @@ export TopOptionsBar from './TopOptionsBar/TopOptionsBar';
 export TopOptionsBarItem from './TopOptionsBar/TopOptionsBarItem';
 export TopOptionsBarDropdownItem from './TopOptionsBar/TopOptionsBarDropdownItem';
 export Chart from './Chart/Chart';
+export Dataset from './Chart/Dataset';
 export Scroller from './Scroller/Scroller';

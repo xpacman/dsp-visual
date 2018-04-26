@@ -2,30 +2,48 @@
  * Created by paco on 17.4.18.
  */
 
-const Decimal = require('decimal.js-light');
-import {max, min} from "d3-array";
-import Signal from '../partials/Signal';
-
 export default class ConvolutionEngine {
 
-  static convolutionStep(inputSignal, kernelSignal) {
-    // TODO: REVERSE INPUT SIGNAL IN TIME
+  /**
+   * Returns convolution result of two signal value arrays
+   * @param inputValues array input signal points [[x0, y0],...]
+   * @param kernelValues array kernel signal points [[x0, y0],...]
+   * @return {Array} of samples [[x0, y0],....]
+   */
+  static convolution(inputValues, kernelValues) {
+    const samplesCount = inputValues.length + kernelValues.length - 1,
+      outputValues = [];
 
-    // Determine x domain of the output signal
-    const x = [inputSignal.xMin, inputSignal.xMax, kernelSignal.xMin, kernelSignal.xMax],
-      xAccessor = (x) => x,
-      xDomain = [min(x.map(xAccessor)), max(x.map(xAccessor))],
-      step = min([inputSignal.step, kernelSignal.step].map(xAccessor)),
-      inputRange = [inputSignal.xMin, inputSignal.xMax],
-      kernelRange = [kernelSignal.xMin, kernelSignal.xMax],
+    for (let i = 0; i < samplesCount; i++) {
+      outputValues[i] = [i, 0]; // set to zero before sum
+      for (let j = 0; j < kernelValues.length; j++) {
+
+        // Skip convolution at the boundary
+        if (!inputValues[i - j]) {
+          continue;
+        }
+        outputValues[i][1] += inputValues[i - j][1] * kernelValues[j][1]; // convolve: multiply and accumulate
+      }
+    }
+
+    return outputValues;
+  }
+
+  /**
+   * Returns array of overlapping points in time in each signal
+   * @param inputSignal Signal instance of input signal
+   * @param kernelSignal Signal instance of kernel signal
+   * @return {*} array of arrays [[input overlapping points <[[x0,y0],...]>, kernel overlapping points <[[x0, y0],...]>]
+   * or empty array if no points are overlapping in time
+   */
+  static getOverlappingPoints(inputSignal, kernelSignal) {
+    const inputRange = inputSignal.xDomain(),
+      kernelRange = kernelSignal.xDomain(),
       inputTimeOffset = inputSignal.timeOffset(),
       kernelTimeOffset = kernelSignal.timeOffset();
 
-    let outputSignal = new Signal(xDomain[0], xDomain[1], step),
-      xMin = 0,
-      xMax = 0,
-      i = 0,
-      j = 0;
+    let xMin = 0,
+      xMax = 0;
 
     // Determine which points are overlapping
     if (inputRange[1] + inputTimeOffset >= kernelRange[0] + kernelTimeOffset
@@ -41,48 +59,11 @@ export default class ConvolutionEngine {
         }
       }
 
-      const kernelOverlappingPoints = kernelSignal.getPointsInRange(xMin, xMax);
-      const inputOverlappingPoints = kernelSignal.getPointsInRange(-xMax, -xMin);
-
-      let convY = 0,
-        convX = 0;
-
-      for (i = 0; i < inputOverlappingPoints.length; i++) {
-        convY += inputOverlappingPoints[i][1] * kernelOverlappingPoints[i][1];
-
-        if (i === inputOverlappingPoints.length - 1) {
-          console.log(outputSignal.values()[i]);
-        }
-      }
+      const kernelOverlappingPoints = kernelSignal.getPointsInRange(xMin, xMax),
+        inputOverlappingPoints = kernelSignal.getPointsInRange(-xMax, -xMin);
+      return [inputOverlappingPoints, kernelOverlappingPoints];
     }
-
-    if (inputRange[0] + inputSignal.timeOffset() >= kernelRange[1] + kernelSignal.timeOffset()) {
-      console.log("compute all")
-    }
-
-  }
-
-  static convolution(inputSignal, kernelSignal) {
-    const inputValues = inputSignal.values(),
-      kernelValues = kernelSignal.values(),
-      samplesCount = inputValues.length + kernelValues.length - 1,
-      outputValues = [],
-      outputSignal = new Signal(-1, 1);
-
-    for (let i = 0; i < samplesCount; i++) {
-      outputValues[i] = [i, 0]; // set to zero before sum
-      for (let j = 0; j < kernelValues.length; j++) {
-
-        // Skip convolution at the boundary
-        if (!inputValues[i - j]) {
-          continue;
-        }
-        outputValues[i][1] += inputValues[i - j][1] * kernelValues[j][1]; // convolve: multiply and accumulate
-      }
-    }
-
-    outputSignal.values(outputValues);
-    return outputSignal;
+    return [];
   }
 
 }

@@ -26,3 +26,26 @@ export function arrayEquals(array1, array2) {
   }
   return true;
 }
+
+/**
+ * Gets index of closest element in array
+ * @param arr array input array
+ * @param accessor function to access element value
+ * @param target number from which to get nearest value
+ * @return {number}
+ */
+export function findIndexOfNearest(arr, accessor, target) {
+
+  let closest = Number.MAX_SAFE_INTEGER,
+    index = 0;
+
+  arr.forEach((element, i) => {
+    let dist = Math.abs(target - accessor(element));
+
+    if (dist < closest) {
+      index = i;
+      closest = dist;
+    }
+  });
+  return index;
+}

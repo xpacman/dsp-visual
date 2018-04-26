@@ -12,7 +12,7 @@ export default class Scroller extends React.Component {
     width: PropTypes.number,
     height: PropTypes.number,
     // Current percentual progress of the scroller
-    progress: PropTypes.number,
+    progress: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     // Precision of the scrolling
     precision: PropTypes.number,
     // Object with konva configs {handle: {<handle rect props>}, scroller: {<background rect props>}}
@@ -63,19 +63,13 @@ export default class Scroller extends React.Component {
       }
 
       // Initial progress
-      this.position((this.props.width * this.props.progress) / 100);
-      this.handle.offsetX(-this.position());
+      this.position(this.progressToPosition(this.progress));
 
       // On mouse click callback
       this.stage.getStage().on("contentMousedown.proto", () => {
         this.isDragging = true;
+        // Move
         this.position(this.stage.getStage().getPointerPosition().x);
-        // Set progress
-        this.progress = this.positionToProgress();
-        // Set position of the handle
-        this.handle.offsetX(-this.position());
-        // Render the layer
-        this.layer.batchDraw();
 
         return this.props.onScroll && this.props.onScroll(this.progress);
       });
@@ -94,15 +88,14 @@ export default class Scroller extends React.Component {
         }
 
         this.position(this.stage.getStage().getPointerPosition().x);
-        // Set progress
-        this.progress = this.positionToProgress();
-        // Set position of the handle
-        this.handle.offsetX(-this.position());
-        // Render the layer
-        this.layer.batchDraw();
-
         return this.props.onScroll && this.props.onScroll(this.progress);
       })
+    }
+  }
+
+  componentWillReceiveProps(props) {
+    if (this.progress !== props.progress) {
+      this.position(this.progressToPosition(props.progress))
     }
   }
 
@@ -125,13 +118,33 @@ export default class Scroller extends React.Component {
   }
 
   /**
+   * Will calculate handle position from progress supplied
+   * @param progress number percentual progress
+   * @return {number}
+   */
+  progressToPosition(progress) {
+    return (this.props.width * progress) / 100
+  }
+
+  /**
+   * Move handle to position
+   * @param position number position where to move
+   */
+  moveHandle(position) {
+    // Set position of the handle
+    this.handle.offsetX(position);
+    // Render the layer
+    this.layer.batchDraw();
+  }
+
+  /**
    * Gets or sets position
    * @param position number x position
    * @return {number|*|null}
    */
   position(position = null) {
 
-    if (!position) {
+    if (!position && position !== 0) {
       return this._position;
     }
 
@@ -139,14 +152,20 @@ export default class Scroller extends React.Component {
       maxWidth = this.props.width;
 
     if (position + handleWidth > maxWidth) {
-      return this._position = maxWidth - handleWidth * 2;
+      this._position = maxWidth - handleWidth * 2;
     }
 
-    if (position - handleWidth < 0) {
-      return this._position = 0;
+    else if (position - handleWidth < 0) {
+      this._position = 0;
     }
 
-    return this._position = position - handleWidth;
+    else {
+      this._position = position - handleWidth;
+    }
+
+    this.progress = this.positionToProgress(this._position);
+    this.moveHandle(-this._position);
+    return this._position;
   }
 
   render() {

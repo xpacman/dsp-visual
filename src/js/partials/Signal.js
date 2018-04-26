@@ -2,67 +2,115 @@
  * Created by paco on 7.4.18.
  */
 const Decimal = require('decimal.js-light');
+import {findIndexOfNearest} from '../utils/ArrayUtils';
 
 export default class Signal {
 
   /**
-   * @param xMin number minimum of x domain
-   * @param xMax number maximum of x domain
-   * @param step number sample step optional
    * @param values Array of arrays of values to set [ [x0, y0], ... ] optional
-   * @param func function to apply for each x value optional (default null means input equals to output)
    * @param timeOffset number offset in time optional (default is zero)
    */
-  constructor(xMin, xMax, step = 0.01, values = null, func = null, timeOffset = 0) {
+  constructor(values = [], timeOffset = 0) {
+    // Minimum x value
+    this.xMin = 0;
+    // Maximum x value
+    this.xMax = 0;
+    // Step on x axis
+    this.xStep = 0;
+    // Function used to generate values
+    this.func = null;
+    // Time offset of this signal
+    this._timeOffset = timeOffset;
+    // Lastly set signal values array. Xmin and xMax will be set by automatically
+    this._values = Array.isArray(values) && values.length > 0 ? this.values(values, true) : [];
+  }
 
+  /**
+   * Will generate values for this signal. Will override current values.
+   * @param xMin number minimal x value
+   * @param xMax number maximal x value
+   * @param step number step on x axis (between each x value)
+   * @param func function function to generate values for each x
+   * @return {Array|*} returns current signal values
+   */
+  generateValues(xMin, xMax, step = 0.01, func = null) {
+    // Generated values will override current values
+    this._values = [];
     this.xMin = xMin;
     this.xMax = xMax;
-    this.step = step;
-
-    // Signal values array
-    this._values = [];
-    // Function used to generate values
+    this.xStep = step;
     this.func = func ? func : x => 0;
 
-    // If values are not set -> generate them
-    if (!values) {
-      step = new Decimal(step);
-      xMax = new Decimal(xMax);
+    step = new Decimal(step);
+    xMax = new Decimal(xMax);
+    for (let i = new Decimal(xMin); i.lessThanOrEqualTo(xMax); i = i.plus(step)) {
 
-      for (let i = new Decimal(xMin); i.lessThanOrEqualTo(xMax); i = i.plus(step)) {
-
-        this._values.push([i.toFixed(2), this.func(i.toFixed(2))]);
-      }
-    } else {
-      this._values = values;
+      this._values.push([i.toFixed(2), this.func(i.toFixed(2))]);
     }
-    this._timeOffset = timeOffset;
+    return this._values;
   }
 
   /**
    * Gets or sets signal values
    * @param values array of arrays [[x0, y0], ...]
-   * @param withOffset whether or not to take current time offset
+   * @param withOffset boolean whether or not to consider current time offset
+   * @param timeReverse boolean whether or not to reverse current values in time
    * @return {Signal.values}
    */
-  values(values = null, withOffset = false) {
-    if (!values) {
+  values(values = null, withOffset = false, timeReverse = false) {
 
-      // Dont forget current time offset
+    if (!values) {
+      let vals = this._values,
+        ret = vals;
+
+      if (timeReverse) {
+        vals = this.timeReverse();
+      }
+
+      // If current time offset should be considered
       if (this.timeOffset() !== 0 && withOffset) {
-        const ret = [],
-          offset = new Decimal(this.timeOffset());
-        this._values.forEach(point => {
+        ret = [];
+        const offset = new Decimal(this.timeOffset());
+        vals.forEach(point => {
           ret.push([((new Decimal(point[0])).plus(offset)).toFixed(2), point[1]]);
         });
-        // Return offseted values
-        return ret;
-      } else {
-        return this._values;
       }
+
+      return ret;
     }
 
+    if (values.length > 0) {
+      // Adjust xDomain of the signal according to new values
+      this.xDomain([values[0][0], values[values.length - 1][0]]);
+    }
     return this._values = values;
+  }
+
+  /**
+   * Returns current values reversed in time.
+   * @return array points [[x0, y0],...] reversed in time
+   */
+  timeReverse() {
+    const ret = [];
+    this._values.forEach(point => ret.push([point[0] * -1, point[1]]));
+    ret.sort((a, b) => a[0] - b[0]);
+    return ret;
+  }
+
+  /**
+   * Gets or sets current x domain
+   * @param domain array [xMin, xMax]
+   * @return array [xMin, xMax]
+   */
+  xDomain(domain = null) {
+
+    if (!domain) {
+      return [Number(this.xMin), Number(this.xMax)];
+    }
+
+    this.xMin = domain[0];
+    this.xMax = domain[1];
+    return domain;
   }
 
   /**
@@ -71,9 +119,12 @@ export default class Signal {
    * @return array|undefined
    */
   getPoint(x) {
-    x = new Decimal(x);
+    if (!isNaN(x)) {
+      x = new Decimal(x);
+      x = x.toFixed(2);
+    }
     return this._values.find(point => {
-      return point[0] === x.toFixed(2)
+      return point[0] === x
     });
   }
 
@@ -111,45 +162,58 @@ export default class Signal {
    * @return {[*,*]}
    */
   setPoint(x, y) {
-    x = new Decimal(x);
-    x = x.toFixed(2);
+    if (!isNaN(x)) {
+      x = new Decimal(x);
+      x = x.toFixed(2);
+    }
     const point = this.getPoint(x);
     // If were able to get the point
     if (point) {
       // Set y value of the point
       point[1] = y;
     } else {
-      // Get nearest point index
-      const nearest = Signal.findIndexOfClosest(this._values, x);
-      // Check wheter to put new point before or after this nearest point
-      if (this._values[nearest][0] > x) {
-        this._values.splice(nearest, 0, [x, y]);
+      // If no points are specified, just push new point
+      if (this._values.length === 0) {
+        this._values.push([x, y])
       } else {
-        this._values.splice(nearest + 1, 0, [x, y]);
+        // Get nearest point index
+        const nearest = findIndexOfNearest(this._values, (point => point[0]), x);
+        // Check wheter to put new point before or after this nearest point
+        if (this._values[nearest][0] > x) {
+          this._values.splice(nearest, 0, [x, y]);
+        } else {
+          this._values.splice(nearest + 1, 0, [x, y]);
+        }
       }
+
     }
     return [x, y];
   }
 
   /**
-   * Gets index of closest point
-   * @param arr
-   * @param target
-   * @return {number}
+   * Returns samples from signal given
+   * @param samplingRate number sampling frequency in Hz
+   * @param signal Signal to sample
+   * @return {Array} [[x0, y0],...] array of samples
    */
-  static findIndexOfClosest(arr, target) {
-    let closest = Number.MAX_SAFE_INTEGER;
-    let index = 0;
+  static getSamples(samplingRate, signal) {
+    // Get period from sampling frequency
+    const period = 1 / samplingRate,
+      xDomain = signal.xDomain(),
+      samples = [];
 
-    arr.forEach((point, i) => {
-      let dist = Math.abs(target - point[0]);
+    for (let i = xDomain[1]; i >= xDomain[0]; i -= period) {
+      const x = new Decimal(Math.floor(i / period)),
+        point = signal.getPoint(i),
+        sample = [Math.floor(x).toFixed(2), 0];
 
-      if (dist < closest) {
-        index = i;
-        closest = dist;
+      if (point) {
+        sample[1] = point[1];
       }
-    });
-    return index;
+      samples.unshift(sample);
+    }
+
+    return samples;
   }
 
   /**
