@@ -26,6 +26,16 @@ export default class Chart extends React.Component {
     margins: PropTypes.array,
     // Margins of the ticks {x: [horizontal, vertical], y: [...]}
     tickMargins: PropTypes.object,
+    // Text to describe x axis
+    xAxisLabel: PropTypes.string,
+    // Text to describe y axis
+    yAxisLabel: PropTypes.string,
+    // Number of ticks on x axis
+    xTicksCount: PropTypes.number,
+    // Number of ticks on y axis
+    yTicksCount: PropTypes.number,
+    // Labels for this chart. Will be displayed as Konva Rect. You can pass [{x, y, width, height, config: <object Konva props>, content: <element>}]
+    labels: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
     // horizontal size of the chart [min, max]
     xRange: PropTypes.array,
     // X axis steps (crosshairs use this)
@@ -54,6 +64,8 @@ export default class Chart extends React.Component {
     width: 500,
     height: 500,
     xStep: 0.01,
+    xTicksCount: 10,
+    yTicksCount: 10,
     margins: [20, 75, 50, 20],
     xDomain: [0, 1],
     yDomain: [0, 1],
@@ -72,6 +84,9 @@ export default class Chart extends React.Component {
     this.xRange = null;
     // Resacle will set xScale, yScale, xRange
     this.rescale(props);
+
+    this.xTicksCount = props.xTicksCount;
+    this.yTicksCount = props.yTicksCount;
 
     // Is mouse dragging
     this.isDragging = false;
@@ -168,6 +183,24 @@ export default class Chart extends React.Component {
       ((this.props.yRange || nextProps.yRange) && !arrayEquals(this.props.yRange, nextProps.yRange))) {
       this.rescale(nextProps);
     }
+  }
+
+  /**
+   * Gets array of label or labels for this chart. If no labels defined, returns empty array
+   * @return {Array}
+   */
+  getChartLabels() {
+    let labels = [];
+
+    if (this.props.labels) {
+
+      if (Array.isArray(this.props.labels)) {
+        labels = this.props.labels;
+      } else if (typeof this.props.labels === "object") {
+        labels.push(this.props.labels);
+      }
+    }
+    return labels;
   }
 
   /**
@@ -342,6 +375,17 @@ export default class Chart extends React.Component {
   }
 
   /**
+   * Simple function will redraw konva layer by the name given
+   * @param layer string layer name, one of [points, axis, crosshairs, labels, grid]
+   */
+  refreshLayer(layer) {
+    const l = this.canvas.layers[`${layer}Layer`];
+    if (l) {
+      l.batchDraw();
+    }
+  }
+
+  /**
    * Gets or sets dataset points, scaled by functions supplied in parameters
    * @param dataset string dataset name
    * @param points array of arrays [[x0, y0],...] points
@@ -369,7 +413,7 @@ export default class Chart extends React.Component {
 
       this._datasets[dataset].data(_points);
       // Update visual signal
-      this.canvas.layers.pointsLayer.batchDraw();
+      this.refreshLayer("points");
       // Return renderable dataset points
       return _points;
     }
@@ -377,7 +421,7 @@ export default class Chart extends React.Component {
   }
 
   render() {
-    const {wrapper, width, height, margins, tickMargins, datasets, xDomain, xRange, yDomain, yRange, children} = this.props;
+    const {wrapper, width, height, margins, tickMargins, datasets, xAxisLabel, yAxisLabel, xDomain, xRange, yDomain, yRange, children} = this.props;
 
     return (
       <Stage ref={(stage) => this.canvas.stage = stage}
@@ -387,7 +431,7 @@ export default class Chart extends React.Component {
              height={height}>
         <Layer ref={(layer) => this.canvas.layers["gridLayer"] = layer}>
           {
-            this.getHorizontalGrid(10).map((grid, index) => {
+            this.getHorizontalGrid(this.xTicksCount).map((grid, index) => {
               return (
                 <Line key={index}
                       points={[this.xScale(grid[0]), grid[1], this.xScale(grid[2]), grid[3]]}
@@ -396,7 +440,7 @@ export default class Chart extends React.Component {
             })
           }
           {
-            this.getVerticalGrid(10).map((grid, index) => {
+            this.getVerticalGrid(this.yTicksCount).map((grid, index) => {
               return (
                 <Line key={index}
                       points={[grid[0], this.yScale(grid[1]), grid[2], this.yScale(grid[3])]}
@@ -419,18 +463,22 @@ export default class Chart extends React.Component {
         </Layer>
 
         <Layer ref={(layer) => this.canvas.layers["axisLayer"] = layer}>
-          <Rect {...config.axisBackground} x={0} y={-margins[0]}
+          <Rect {...config.axisBackground} x={-margins[3]} y={-margins[0]}
                 width={width} height={margins[0]}/>
-          <Rect {...config.axisBackground} x={-margins[3]} y={0}
+          <Rect {...config.axisBackground} x={-margins[3]} y={-margins[0]}
                 width={margins[3]} height={height}/>
           <Rect {...config.axisBackground} x={-margins[3]} y={height - margins[0] - margins[2]}
                 width={width} height={margins[2]}/>
+          {
+            xAxisLabel && <Text text={`${xAxisLabel} →`} x={this.trimDims[0] - margins[1] / 2}
+                                y={this.trimDims[1] / 2 + 5} {...config.axisLabel}/>
+          }
           <Line
             points={[0, this.trimDims[1], this.trimDims[0], this.trimDims[1]]}
             {...config.axisLine}
           />
           {
-            this.getHorizontalTicks(10).map((tick, index) => {
+            this.getHorizontalTicks(this.xTicksCount).map((tick, index) => {
               return (
                 <Text key={index}
                       text={tick[0].toFixed(2)}
@@ -443,6 +491,10 @@ export default class Chart extends React.Component {
                 />);
             })
           }
+          {
+            yAxisLabel && <Text text={`${yAxisLabel} ↑`} x={this.trimDims[0] / 2 - margins[3]}
+                                y={margins[0] / 2} {...config.axisLabel}/>
+          }
           <Line
             points={[this.trimDims[0], 0, this.trimDims[0], this.trimDims[1]]}
             {...config.axisLine}
@@ -450,7 +502,7 @@ export default class Chart extends React.Component {
           <Rect {...config.axisBackground} x={this.trimDims[0]} y={0}
                 width={margins[1]} height={this.trimDims[1]}/>
           {
-            this.getVerticalTicks(10).map((tick, index) => {
+            this.getVerticalTicks(this.yTicksCount).map((tick, index) => {
               return (
                 <Text key={index}
                       text={tick[1].toFixed(2)}
@@ -490,6 +542,19 @@ export default class Chart extends React.Component {
                   {...config.crosshairText}
             />
           </Group>
+        </Layer>
+
+        <Layer ref={(layer => this.canvas.layers["labelsLayer"] = layer)}>
+          {
+            this.getChartLabels().map((label, index) => {
+              return (
+                <Group key={index} x={label.x - margins[3]} y={label.y - margins[0]}>
+                  <Rect x={0} y={0} width={label.width} height={label.height} {...label.config}/>
+                  {label.content}
+                </Group>
+              )
+            })
+          }
         </Layer>
 
       </Stage>

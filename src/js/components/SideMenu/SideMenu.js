@@ -38,7 +38,7 @@ export default class SideMenu extends React.Component {
         <NavItem className={`${styles.sideMenu__item}`}>
           {!collapsed ?
             <h2 className={`${styles.sideMenu__item__link} ${styles.brand_logo}`}>GraphiX</h2> :
-            <h2 className={`${styles.sideMenu__item__link} ${styles.brand_logo}`}>G</h2>
+            <h2 className={`${styles.sideMenu__item__link} ${styles.brand_logo}`}>VUT FEKT</h2>
           }
         </NavItem>
         {

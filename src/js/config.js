@@ -18,6 +18,11 @@ module.exports = {
     fontSize: 10,
     align: "center"
   },
+  axisLabel: {
+    fill: "#999999",
+    fontSize: 12,
+    align: "center"
+  },
   axisLine: {
     stroke: "#494949",
     strokeWidth: 1
@@ -31,6 +36,12 @@ module.exports = {
   pointCircle: {
     radius: 3,
     fill: "red"
+  },
+  chartLabelText: {
+    fill: "white",
+    fontSize: 12,
+    align: "center",
+    offsetY: -3
   },
   signalLine: {
     stroke: "green",
@@ -82,7 +93,7 @@ module.exports = {
     rect: {
       fill: "rgba(223, 177, 38, 0.8)",
       stroke: "#DFB126",
-      width: 30,
+      width: 60,
       offsetX: 15
     }
   },

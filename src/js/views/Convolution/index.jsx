@@ -5,6 +5,7 @@ import {
   UncontrolledDropdown
 } from "reactstrap";
 import styles from "./convolution.scss";
+import {Rect, Text} from "react-konva";
 import Signals from "../../utils/Signals";
 import ConvolutionEngine from "../../utils/ConvolutionEngine";
 import {Chart, Scroller} from "../../components";
@@ -58,7 +59,9 @@ export default class Convolution extends React.Component {
     this.draggableChartWrapper = null; // Draggable Chart wrapper ref
     this.draggableChart = null; // Draggable Chart
     this.outputChart = null; // Output Chart
-    this.stepChart = null; // Output Chart
+    this.stepChart = null; // Step Chart
+    this.draggableChartOffsetLabel = null; // Draggable chart label text
+    this.outputChartOffsetLabel = null; // Output chart label text
   }
 
   componentDidMount() {
@@ -187,24 +190,30 @@ export default class Convolution extends React.Component {
     // Update draggable chart
     this.draggableChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values(null, true, true));
     // Convolution result up to this scroller position progress
-    const convResult = this.result.slice(0, this.result.findIndex((point => point[0] === this.inputSignalSampled.xDomain()[1] + offsetX)) + 1);
+    const convResult = this.result.slice(0, this.result.findIndex((point => point[0] === this.inputSignalSampled.xDomain()[1] + offsetX)) + 1),
+      lastPoint = convResult.length > 0 ? convResult[convResult.length - 1][1] : 0;
+    this.draggableChartOffsetLabel.setAttr("text", `y(${offsetX}) = ${lastPoint.toFixed(2)}`);
+    this.draggableChart.refreshLayer("labels");
     // Handle step signal
-    this.stepSignal.values([[0, convResult.length > 0 ? convResult[convResult.length - 1][1] : 0]]);
+    this.stepSignal.values([[0, lastPoint]]);
     this.stepChart.datasetPoints("stepSignal", this.stepSignal.values());
     // Set output signal values as portion of convolution result based on scroller progress
     this.signalOutput.values(convResult);
     this.outputChart.datasetPoints("outputSignal", this.signalOutput.values());
+    this.outputChartOffsetLabel.setAttr("text", `y(${offsetX}) = ∑ x(n) ∗ h(${offsetX} - n)`);
+    this.outputChart.refreshLayer("labels");
   }
 
   render() {
-    const {dropdowns, inputValues, inputValid, samplingRate} = this.state;
+    const {dropdowns, inputValues, inputValid, samplingRate} = this.state,
+      offsetX = this.inputSignalSampled.timeOffset();
 
     return (
       <div className={styles.container}>
         <Navbar dark className={styles.navbar}>
           <Nav>
             <NavItem className="d-inline-flex align-items-center px-3 polyEquation">
-              test
+              Diskrétní lineární konvoluce
             </NavItem>
             <UncontrolledDropdown nav inNavbar
                                   className="d-inline-flex align-items-center px-3"
@@ -282,6 +291,14 @@ export default class Convolution extends React.Component {
                                               wrapper={this.inputChartWrapper}
                                               width={this.inputChartWrapper.offsetWidth}
                                               height={this.inputChartWrapper.offsetHeight}
+                                              xAxisLabel={"t"}
+                                              labels={{
+                                                x: 20,
+                                                y: 0,
+                                                width: 50,
+                                                height: 20,
+                                                content: <Text text="Vstupní signál h(t)" {...config.chartLabelText} />
+                                              }}
                                               xDomain={[-1, 1]}
                                               yDomain={[-1, 1]}
                                               datasets={{
@@ -308,13 +325,27 @@ export default class Convolution extends React.Component {
                                              wrapper={this.stepChartWrapper}
                                              width={this.stepChartWrapper.offsetWidth}
                                              height={this.stepChartWrapper.offsetHeight}
+                                             xAxisLabel={"τ"}
                                              clickSafe={true}
+                                             xTicksCount={2}
+                                             xStep={1}
+                                             labels={{
+                                               x: 20,
+                                               y: 0,
+                                               width: 50,
+                                               height: 20,
+                                               content: <Text text="x(n) ∗ h(τ - n)" {...config.chartLabelText} />
+                                             }}
                                              xDomain={[-1, 1]}
                                              yDomain={this.outputChartYDomain}
                                              datasets={{
                                                stepSignal: {
                                                  data: this.stepSignal.values(),
-                                                 config: config.convolutionStepChart.rect,
+                                                 config: {
+                                                   ...config.convolutionStepChart.rect,
+                                                   width: this.stepChartWrapper.offsetWidth - 95,
+                                                   offsetX: (this.stepChartWrapper.offsetWidth - 95) / 2
+                                                 },
                                                  element: "rect"
                                                }
                                              }}/>
@@ -326,6 +357,15 @@ export default class Convolution extends React.Component {
             {this.kernelChartWrapper && <Chart wrapper={this.kernelChartWrapper}
                                                width={this.kernelChartWrapper.offsetWidth}
                                                height={this.kernelChartWrapper.offsetHeight}
+                                               xAxisLabel={"t"}
+                                               labels={{
+                                                 x: 20,
+                                                 y: 0,
+                                                 width: 50,
+                                                 height: 20,
+                                                 content: <Text
+                                                   text="Výstupní signál x(t)" {...config.chartLabelText} />
+                                               }}
                                                xDomain={[-1, 1]}
                                                yDomain={[-1, 1]}
                                                datasets={{
@@ -354,6 +394,15 @@ export default class Convolution extends React.Component {
                                                wrapper={this.outputChartWrapper}
                                                width={this.outputChartWrapper.offsetWidth}
                                                height={this.outputChartWrapper.offsetHeight}
+                                               xAxisLabel={"τ"}
+                                               labels={{
+                                                 x: 20,
+                                                 y: 0,
+                                                 width: 50,
+                                                 height: 20,
+                                                 content: <Text ref={(text => this.outputChartOffsetLabel = text)}
+                                                                text={`y(${offsetX}) = ∑ x(n) ∗ h(${offsetX} - n)`} {...config.chartLabelText} />
+                                               }}
                                                clickSafe={true}
                                                xDomain={this.outputChartXDomain}
                                                yDomain={this.outputChartYDomain}
@@ -361,7 +410,11 @@ export default class Convolution extends React.Component {
                                                datasets={{
                                                  outputSignal: {
                                                    data: this.signalOutput.values(),
-                                                   config: config.convolutionOutputChart.rect,
+                                                   config: {
+                                                     ...config.convolutionOutputChart.rect,
+                                                     width: this.outputChartWrapper.offsetWidth / 21 - 10,
+                                                     offsetX: (this.outputChartWrapper.offsetWidth / 21 - 10) / 2
+                                                   },
                                                    element: "rect"
                                                  }
                                                }}/>
@@ -375,6 +428,15 @@ export default class Convolution extends React.Component {
                                                   wrapper={this.draggableChartWrapper}
                                                   width={this.draggableChartWrapper.offsetWidth}
                                                   height={this.draggableChartWrapper.offsetHeight}
+                                                  xAxisLabel={"τ"}
+                                                  labels={[{
+                                                    x: 20,
+                                                    y: 0,
+                                                    width: 50,
+                                                    height: 20,
+                                                    content: <Text ref={(text => this.draggableChartOffsetLabel = text)}
+                                                                   text={`y(${offsetX}) = 0`} {...config.chartLabelText} />
+                                                  }]}
                                                   clickSafe={true}
                                                   xStep={1}
                                                   xDomain={this.timeDomain}
@@ -382,12 +444,20 @@ export default class Convolution extends React.Component {
                                                   datasets={{
                                                     inputSignalSampled: {
                                                       data: this.inputSignalSampled.values(null, true, true),
-                                                      config: config.convolutionInputChart.rect,
+                                                      config: {
+                                                        ...config.convolutionInputChart.rect,
+                                                        width: this.draggableChartWrapper.offsetWidth / 21 - 10,
+                                                        offsetX: (this.draggableChartWrapper.offsetWidth / 21 - 10) / 2
+                                                      },
                                                       element: "rect"
                                                     },
                                                     kernelSignalSampled: {
                                                       data: this.kernelSignalSampled.values(),
-                                                      config: config.convolutionKernelChart.rect,
+                                                      config: {
+                                                        ...config.convolutionKernelChart.rect,
+                                                        width: this.draggableChartWrapper.offsetWidth / 21 - 10,
+                                                        offsetX: (this.draggableChartWrapper.offsetWidth / 21 - 10) / 2
+                                                      },
                                                       element: "rect"
                                                     },
                                                   }}/>

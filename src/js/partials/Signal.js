@@ -68,7 +68,7 @@ export default class Signal {
       }
 
       // If current time offset should be considered
-      if (this.timeOffset() !== 0 && withOffset) {
+      if (withOffset) {
         ret = [];
         const offset = new Decimal(this.timeOffset());
         vals.forEach(point => {
@@ -221,9 +221,9 @@ export default class Signal {
    * @param offset
    * @return {*}
    */
-  timeOffset(offset) {
+  timeOffset(offset = null) {
 
-    if (!offset) {
+    if (offset === null) {
       return this._timeOffset;
     }
 
