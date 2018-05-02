@@ -5,13 +5,12 @@ import {
   UncontrolledDropdown
 } from "reactstrap";
 import styles from "./interpolation.scss";
-import Signals from "../../utils/Signals";
+import Signal from "../../partials/Signal";
 import {TopOptionsBar, TopOptionsBarDropdownItem, TopOptionsBarItem, Chart} from "../../components";
-import {Line, Group, Circle} from "react-konva";
+import {Text} from "react-konva";
 import {max, min} from "d3-array";
 import InterpolationEngine from "../../utils/InterpolationEngine";
 import config from "../../config";
-import Konva from "konva";
 
 
 export default class Interpolation extends React.Component {
@@ -24,8 +23,17 @@ export default class Interpolation extends React.Component {
       },
       inputValid: true,
       //inputValues: Signals.generateSinSignal()
-      inputValues: [[1, 2], [2, 1.5], [2.5, 0.8], [4, 2.8]]
+      inputValues: [[1, 2], [2, 1.5], [2.5, 0.8], [4, 2.8]],
+      samplingRate: 10 // Sampling frequency in Hz
     };
+
+    // Signals
+    this.originalSignal = new Signal(); // Original signal
+    this.originalSignal.generateValues(0, 8, 0.01, (x => Math.sin(x)));
+    this.originalSampled = new Signal(Signal.getSamples(this.state.samplingRate, this.originalSignal));
+    console.log(this.originalSampled.values());
+    this.timeDomain = this.originalSignal.xDomain();
+    this.yDomain = this.originalSignal.getYDomain();
 
     // Refs
     this.inputValues = null; // Input values ref
@@ -49,7 +57,6 @@ export default class Interpolation extends React.Component {
   }
 
   setSignalPreset(signal) {
-    this.setState({inputValues: Signals.generateSinSignal()})
   }
 
   /**
@@ -147,40 +154,34 @@ export default class Interpolation extends React.Component {
           </Nav>
         </Navbar>
 
-        <div id="interpolation-chart-wrapper" ref={(elem) => this.chartWrapper = elem} className="h-100 w-100">
-          {this.chartWrapper &&
-          <Chart ref={(chart) => this.chart = chart}
-                 wrapper={this.chartWrapper}
-                 width={this.chartWrapper.offsetWidth}
-                 height={this.chartWrapper.offsetHeight}
-                 xDomain={[min(inputValues.map((d) => d[0])), max(inputValues.map((d) => Math.abs(d[0])))]}
-                 yDomain={[0, max(inputValues.map((d) => Math.abs(d[1])))]}>
-            {
-              that.chart && inputValues.map((point, index) => {
-                return (
-                  <Group key={index} x={that.chart.xScale(point[0])} y={that.chart.yScale(point[1])}>
-                    <Line points={[-10, 0, 10, 0]} {...config.pointCross}/>
-                    <Line points={[0, -10, 0, 10]}{...config.pointCross}/>
-                    <Circle {...config.pointCircle} x={0} y={0}/>
-                  </Group>
-                );
-              })
+        <div className={`row h-100 ${styles.chartRow}`}>
+          <div id="interpolation-chart-wrapper" ref={(elem) => this.chartWrapper = elem}
+               className={`col-12 ${styles.chartWrapper}`}>
+            {this.chartWrapper && <Chart ref={(chart) => this.chart = chart}
+                                         wrapper={this.chartWrapper}
+                                         width={this.chartWrapper.offsetWidth}
+                                         height={this.chartWrapper.offsetHeight}
+                                         xAxisLabel={"t"}
+                                         xDomain={this.timeDomain}
+                                         yDomain={this.yDomain}
+                                         datasets={{
+                                           originalSignal: {
+                                             data: this.originalSignal.values(),
+                                             config: config.convolutionInputChart.line
+                                           },
+                                           originalSampled: {
+                                             data: this.originalSampled.values(),
+                                             config: {
+                                               ...config.convolutionStepChart.rect,
+                                               width: 1,
+                                               offsetX: 0
+                                             },
+                                             element: "rect"
+                                           }
+                                         }}
+            />
             }
-
-            <Line {...config.signalLine} points={that.getPoints(inputValues)}/>
-
-            <Line {...config.signalLine} stroke="red"
-                  points={that.getPoints(InterpolationEngine.getZeroOrderHoldInterpolation(inputValues))}/>
-
-            <Line {...config.signalLine} stroke="white"
-                  points={that.getPoints(InterpolationEngine.newtonInterpolation(inputValues, (() => {
-                    const ret = [];
-                    for (let i = 0; i <= 100; i++)
-                      ret.push(i * 0.1);
-                    return ret
-                  })()))}/>
-          </Chart>
-          }
+          </div>
         </div>
       </div>
     );

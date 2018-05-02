@@ -82,7 +82,9 @@ export default class Chart extends React.Component {
     this.yScale = null;
     // Chart range
     this.xRange = null;
-    // Resacle will set xScale, yScale, xRange
+    // Step on x axis
+    this.xStep = null;
+    // Rescale will set xScale, yScale, xRange, xStep
     this.rescale(props);
 
     this.xTicksCount = props.xTicksCount;
@@ -151,7 +153,7 @@ export default class Chart extends React.Component {
         // Crosshairs support
         if (cursorPosition) {
 
-          if (this.pointerPosition && (Math.abs(this.getCordXValue(this.pointerPosition.x) - this.getCordXValue(cursorPosition.x)) >= this.props.xStep)) {
+          if (this.pointerPosition && (this.xStep.lessThanOrEqualTo(Math.abs(this.getCordXValue(this.pointerPosition.x) - this.getCordXValue(cursorPosition.x)).toFixed(2)))) {
             cursorPosition.x = this.xScale(this.xRange[findIndexOfNearest(this.xRange, (x => x), this.getCordXValue(cursorPosition.x))]) + this.props.margins[3];
           } else {
             cursorPosition.x = this.pointerPosition.x;
@@ -239,8 +241,9 @@ export default class Chart extends React.Component {
    */
   rescale(config = {}) {
     const conf = {...this.props, ...config};
+    this.xStep = new Decimal(conf.xStep);
     this.trimDims = [conf.width - conf.margins[1] - conf.margins[3], conf.height - conf.margins[0] - conf.margins[2]];
-    this.xRange = range(conf.xDomain[0], conf.xDomain[1] + 1, conf.xStep);
+    this.xRange = range(conf.xDomain[0], conf.xDomain[1] + 1, this.xStep.toFixed(2));
 
     // D3 scales
     this.xScale = scaleLinear()
@@ -492,7 +495,7 @@ export default class Chart extends React.Component {
             })
           }
           {
-            yAxisLabel && <Text text={`${yAxisLabel} ↑`} x={this.trimDims[0] / 2 - margins[3]}
+            yAxisLabel && <Text text={`${yAxisLabel} ↑`} x={this.trimDims[0] / 2 - margins[3] - 5}
                                 y={margins[0] / 2} {...config.axisLabel}/>
           }
           <Line

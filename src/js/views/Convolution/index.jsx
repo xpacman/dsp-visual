@@ -5,8 +5,8 @@ import {
   UncontrolledDropdown
 } from "reactstrap";
 import styles from "./convolution.scss";
+const Decimal = require('decimal.js-light');
 import {Rect, Text} from "react-konva";
-import Signals from "../../utils/Signals";
 import ConvolutionEngine from "../../utils/ConvolutionEngine";
 import {Chart, Scroller} from "../../components";
 import {max, min} from "d3-array";
@@ -36,14 +36,16 @@ export default class Convolution extends React.Component {
     this.progress = 0;
     // Convolution result
     this.result = [];
-    this.outputChartXDomain = [-5, 15];
+    this.outputChartXDomain = [-1, 3];
     this.outputChartYDomain = [-3, 3];
 
     // Signals
-    this.timeDomain = [-10, 10]; // Time domain for signals
+    this.timeDomain = [-1, 1]; // Time domain for signals
+    this.draggableTimeDomain = [-2, 2]; // Time domain for dragging
+    this.draggableStep = 0.2;
     this.kernelSignal = new Signal(); // Kernel signal
-    this.inputSignal = new Signal([], this.timeDomain[0]); // Input signal
-    this.inputSignalSampled = new Signal([], this.timeDomain[0]); // Discrete input signal
+    this.inputSignal = new Signal(); // Input signal
+    this.inputSignalSampled = new Signal([], this.draggableTimeDomain[0]); // Discrete input signal
     this.kernelSignalSampled = new Signal(); // Discrete kernel signal
     this.stepSignal = new Signal(); // Convolution step
     this.signalOutput = new Signal(); // Output (result) signal
@@ -78,7 +80,6 @@ export default class Convolution extends React.Component {
   }
 
   setSignalPreset(signal) {
-    this.setState({inputValues: Signals.generateSinSignal()})
   }
 
   /**
@@ -89,13 +90,11 @@ export default class Convolution extends React.Component {
 
     if (resetInputs) {
       // Regenerate values to initial
-      this.kernelSignal.generateValues(-1, 1);
-      this.inputSignal.generateValues(-1, 1);
-      // Reset time offset
-      this.inputSignal.timeOffset(this.timeDomain[0]);
+      this.kernelSignal.generateValues(this.timeDomain[0], this.timeDomain[1]);
+      this.inputSignal.generateValues(this.timeDomain[0], this.timeDomain[1]);
     }
 
-    this.inputSignalSampled.timeOffset(this.timeDomain[0]);
+    this.inputSignalSampled.timeOffset(this.draggableTimeDomain[0].toFixed(2));
     this.inputSignalSampled.values(Signal.getSamples(this.state.samplingRate, this.inputSignal));
     this.kernelSignalSampled.values(Signal.getSamples(this.state.samplingRate, this.kernelSignal));
     this.signalOutput.values([]);
@@ -168,7 +167,7 @@ export default class Convolution extends React.Component {
     const xMin = this.inputSignalSampled.xDomain()[0];
     let xMax = 0;
     this.result.map((sample, i) => {
-      sample[0] = xMin + i;
+      sample[0] = (new Decimal(xMin + i * this.draggableStep)).toFixed(2);
       xMax = sample[0];
     });
     // Rescale output chart for new result values
@@ -184,15 +183,15 @@ export default class Convolution extends React.Component {
   moveScroller(position) {
     this.progress = position;
     // Move only by x range steps
-    const offsetX = this.draggableChart.xRange[findIndexOfNearest(this.draggableChart.xRange, (x) => x, (position * (this.timeDomain[1] - this.timeDomain[0]) / 100) + this.timeDomain[0])];
+    const offsetX = new Decimal(this.draggableChart.xRange[findIndexOfNearest(this.draggableChart.xRange, (x) => x, (position * (this.draggableTimeDomain[1] - this.draggableTimeDomain[0]) / 100) + this.draggableTimeDomain[0])]);
     // Set time offset of the signal
-    this.inputSignalSampled.timeOffset(offsetX);
+    this.inputSignalSampled.timeOffset(offsetX.toFixed(2));
     // Update draggable chart
     this.draggableChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values(null, true, true));
     // Convolution result up to this scroller position progress
-    const convResult = this.result.slice(0, this.result.findIndex((point => point[0] === this.inputSignalSampled.xDomain()[1] + offsetX)) + 1),
+    const convResult = this.result.slice(0, this.result.findIndex((point => point[0] === offsetX.plus(this.inputSignalSampled.xDomain()[1]).toFixed(2))) + 1),
       lastPoint = convResult.length > 0 ? convResult[convResult.length - 1][1] : 0;
-    this.draggableChartOffsetLabel.setAttr("text", `y(${offsetX}) = ${lastPoint.toFixed(2)}`);
+    this.draggableChartOffsetLabel.setAttr("text", `t = ${offsetX.toFixed(2)}`);
     this.draggableChart.refreshLayer("labels");
     // Handle step signal
     this.stepSignal.values([[0, lastPoint]]);
@@ -200,7 +199,7 @@ export default class Convolution extends React.Component {
     // Set output signal values as portion of convolution result based on scroller progress
     this.signalOutput.values(convResult);
     this.outputChart.datasetPoints("outputSignal", this.signalOutput.values());
-    this.outputChartOffsetLabel.setAttr("text", `y(${offsetX}) = ∑ x(n) ∗ h(${offsetX} - n)`);
+    this.outputChartOffsetLabel.setAttr("text", `y(${offsetX.toFixed(2)}) = ∑ x(n) ∗ h(${offsetX.toFixed(2)} - n) = ${lastPoint.toFixed(2)}`);
     this.outputChart.refreshLayer("labels");
   }
 
@@ -299,7 +298,7 @@ export default class Convolution extends React.Component {
                                                 height: 20,
                                                 content: <Text text="Vstupní signál h(t)" {...config.chartLabelText} />
                                               }}
-                                              xDomain={[-1, 1]}
+                                              xDomain={this.timeDomain}
                                               yDomain={[-1, 1]}
                                               datasets={{
                                                 inputSignal: {
@@ -325,7 +324,7 @@ export default class Convolution extends React.Component {
                                              wrapper={this.stepChartWrapper}
                                              width={this.stepChartWrapper.offsetWidth}
                                              height={this.stepChartWrapper.offsetHeight}
-                                             xAxisLabel={"τ"}
+                                             xAxisLabel={"t"}
                                              clickSafe={true}
                                              xTicksCount={2}
                                              xStep={1}
@@ -334,9 +333,9 @@ export default class Convolution extends React.Component {
                                                y: 0,
                                                width: 50,
                                                height: 20,
-                                               content: <Text text="x(n) ∗ h(τ - n)" {...config.chartLabelText} />
+                                               content: <Text text="x(n) ∗ h(t - n)" {...config.chartLabelText} />
                                              }}
-                                             xDomain={[-1, 1]}
+                                             xDomain={this.timeDomain}
                                              yDomain={this.outputChartYDomain}
                                              datasets={{
                                                stepSignal: {
@@ -366,7 +365,7 @@ export default class Convolution extends React.Component {
                                                  content: <Text
                                                    text="Výstupní signál x(t)" {...config.chartLabelText} />
                                                }}
-                                               xDomain={[-1, 1]}
+                                               xDomain={this.timeDomain}
                                                yDomain={[-1, 1]}
                                                datasets={{
                                                  kernelSignal: {
@@ -394,19 +393,21 @@ export default class Convolution extends React.Component {
                                                wrapper={this.outputChartWrapper}
                                                width={this.outputChartWrapper.offsetWidth}
                                                height={this.outputChartWrapper.offsetHeight}
-                                               xAxisLabel={"τ"}
+                                               xAxisLabel={"t"}
+                                               yAxisLabel={"y(t)"}
+                                               xTicksCount={21}
                                                labels={{
                                                  x: 20,
                                                  y: 0,
                                                  width: 50,
                                                  height: 20,
                                                  content: <Text ref={(text => this.outputChartOffsetLabel = text)}
-                                                                text={`y(${offsetX}) = ∑ x(n) ∗ h(${offsetX} - n)`} {...config.chartLabelText} />
+                                                                text={`y(${offsetX}) = ∑ x(n) ∗ h(${offsetX} - n) = 0.00`} {...config.chartLabelText} />
                                                }}
                                                clickSafe={true}
                                                xDomain={this.outputChartXDomain}
                                                yDomain={this.outputChartYDomain}
-                                               xStep={1}
+                                               xStep={this.draggableStep}
                                                datasets={{
                                                  outputSignal: {
                                                    data: this.signalOutput.values(),
@@ -428,18 +429,19 @@ export default class Convolution extends React.Component {
                                                   wrapper={this.draggableChartWrapper}
                                                   width={this.draggableChartWrapper.offsetWidth}
                                                   height={this.draggableChartWrapper.offsetHeight}
-                                                  xAxisLabel={"τ"}
+                                                  xAxisLabel={"t"}
+                                                  xTicksCount={20}
                                                   labels={[{
                                                     x: 20,
                                                     y: 0,
                                                     width: 50,
                                                     height: 20,
                                                     content: <Text ref={(text => this.draggableChartOffsetLabel = text)}
-                                                                   text={`y(${offsetX}) = 0`} {...config.chartLabelText} />
+                                                                   text={`t = ${offsetX}`} {...config.chartLabelText} />
                                                   }]}
                                                   clickSafe={true}
-                                                  xStep={1}
-                                                  xDomain={this.timeDomain}
+                                                  xStep={this.draggableStep}
+                                                  xDomain={this.draggableTimeDomain}
                                                   yDomain={[-1, 1]}
                                                   datasets={{
                                                     inputSignalSampled: {

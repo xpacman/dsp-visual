@@ -3,6 +3,7 @@
  */
 const Decimal = require('decimal.js-light');
 import {findIndexOfNearest} from '../utils/ArrayUtils';
+import {extent} from "d3-array";
 
 export default class Signal {
 
@@ -21,7 +22,7 @@ export default class Signal {
     this.func = null;
     // Time offset of this signal
     this._timeOffset = timeOffset;
-    // Lastly set signal values array. Xmin and xMax will be set by automatically
+    // Lastly set signal values array. Xmin and xMax will be set automatically
     this._values = Array.isArray(values) && values.length > 0 ? this.values(values, true) : [];
   }
 
@@ -55,7 +56,7 @@ export default class Signal {
    * @param values array of arrays [[x0, y0], ...]
    * @param withOffset boolean whether or not to consider current time offset
    * @param timeReverse boolean whether or not to reverse current values in time
-   * @return {Signal.values}
+   * @return {Signal.values} array of values [x0, y0, x1, y1,...]
    */
   values(values = null, withOffset = false, timeReverse = false) {
 
@@ -81,7 +82,7 @@ export default class Signal {
 
     if (values.length > 0) {
       // Adjust xDomain of the signal according to new values
-      this.xDomain([values[0][0], values[values.length - 1][0]]);
+      this.xDomain(extent(values.map(point => Number(point[0]))));
     }
     return this._values = values;
   }
@@ -111,6 +112,14 @@ export default class Signal {
     this.xMin = domain[0];
     this.xMax = domain[1];
     return domain;
+  }
+
+  /**
+   * Returns min and max y value
+   * @return {*} array [yMin, yMax]
+   */
+  getYDomain() {
+    return extent(this._values.map(point => point[1]));
   }
 
   /**
@@ -194,23 +203,23 @@ export default class Signal {
    * Returns samples from signal given
    * @param samplingRate number sampling frequency in Hz
    * @param signal Signal to sample
+   * @param precision number decimal precision in time
    * @return {Array} [[x0, y0],...] array of samples
    */
-  static getSamples(samplingRate, signal) {
+  static getSamples(samplingRate, signal, precision = 2) {
     // Get period from sampling frequency
-    const period = 1 / samplingRate,
+    const period = new Decimal(1 / samplingRate),
       xDomain = signal.xDomain(),
       samples = [];
 
-    for (let i = xDomain[1]; i >= xDomain[0]; i -= period) {
-      const x = new Decimal(Math.floor(i / period)),
-        point = signal.getPoint(i),
-        sample = [Math.floor(x).toFixed(2), 0];
+    for (let i = new Decimal(xDomain[0]); i.lessThanOrEqualTo(xDomain[1]); i = i.plus(period)) {
+      const point = signal.getPoint(i.toFixed(precision)),
+        sample = [i.toFixed(precision), 0];
 
       if (point) {
         sample[1] = point[1];
       }
-      samples.unshift(sample);
+      samples.push(sample);
     }
 
     return samples;
