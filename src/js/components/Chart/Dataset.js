@@ -32,13 +32,27 @@ export default class Dataset extends React.Component {
     super(props);
 
     this._data = props.data;
-    this.config = props.config;
+    this._config = props.config;
+    this.data = this.data.bind(this);
 
     // Refs will be stored here
     this.elements = {
       rect: null, // Group of rects
       line: null
     };
+  }
+
+  /**
+   * Gets or sets current config
+   * @param config object Konva config object
+   * @return {*} object
+   */
+  config(config = null) {
+
+    if (config) {
+      this._config = {...this._config, ...config};
+    }
+    return this._config;
   }
 
   /**
@@ -74,14 +88,14 @@ export default class Dataset extends React.Component {
               height: height,
               x: x,
               y: y,
-              ...this.config
+              ...this._config
             }));
           }
           // Child exist -> update values
           else {
             rects[n].x(x);
             rects[n].y(y);
-            rects[n].setAttrs(this.config);
+            rects[n].setAttrs(this._config);
             rects[n].attrs.height = height;
           }
           n++;
@@ -96,7 +110,7 @@ export default class Dataset extends React.Component {
 
   render() {
     const {element, y} = this.props,
-      {_data, config} = this;
+      {_data, _config} = this;
 
     switch (element) {
       case "rect":
@@ -108,7 +122,7 @@ export default class Dataset extends React.Component {
                 if (i % 2 === 0) {
                   return (<Rect key={i} x={value}
                                 height={-(y - _data[i + 1]) + 1}
-                                y={y} {...config}/>)
+                                y={y} {..._config}/>)
                 }
               })
             }
@@ -117,7 +131,7 @@ export default class Dataset extends React.Component {
         break;
 
       default:
-        return (<Line ref={(line) => this.elements.line = line} {...config}
+        return (<Line ref={(line) => this.elements.line = line} {..._config}
                       points={_data}/>)
     }
   }

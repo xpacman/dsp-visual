@@ -71,6 +71,33 @@ module.exports = {
     textAlign: "start",
     textBaseline: "alphabetic"
   },
+  interpolationOriginalSignal: {
+    line: {
+      stroke: "#DFB126",
+      lineWidth: 5,
+      lineJoin: "round"
+    }
+  },
+  interpolationSampledSignal: {
+    rect: {
+      stroke: "#D4243C",
+      fill: "#D4243C",
+    }
+  },
+  interpolationZOHSignal: {
+    line: {
+      stroke: "#B8D725",
+      lineWidth: 5,
+      lineJoin: "round"
+    }
+  },
+  interpolationFOHSignal: {
+    line: {
+      stroke: "#df4b26",
+      lineWidth: 5,
+      lineJoin: "round"
+    }
+  },
   convolutionKernelChart: {
     line: {
       stroke: "#df4b26",

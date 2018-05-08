@@ -46,7 +46,7 @@ export default class Chart extends React.Component {
     yRange: PropTypes.array,
     // y axis values [min, max]
     yDomain: PropTypes.array,
-    // Datasets for chart -> {dataset name: {data: [array of points], config: {<Object with Konva config>}}}
+    // Datasets for chart -> {dataset name: {data: [array of points], config: {<Object with Konva config>}, element: <string konva element to be displayed e.x line or rect>}}
     datasets: PropTypes.object,
     // Children to be displayed in the plot area
     children: PropTypes.oneOfType([PropTypes.func, PropTypes.element, PropTypes.array, PropTypes.object]),
@@ -362,7 +362,7 @@ export default class Chart extends React.Component {
   getCordXValue(x, precision = 2) {
     // Value converted from canvas coords
     const value = (this.props.xDomain[1] - this.props.xDomain[0]) * (100 / (this.trimDims[0]) * (x - this.props.margins[3]) / 100);
-    return (this.props.xDomain[0] + value).toFixed(precision);
+    return (Number(this.props.xDomain[0]) + value).toFixed(precision);
   }
 
   /**
@@ -374,7 +374,7 @@ export default class Chart extends React.Component {
   getCordYValue(y, precision = 2) {
     // Value converted from canvas coords
     const value = (this.props.yDomain[1] - this.props.yDomain[0]) * (100 / (this.trimDims[1]) * (y - this.props.margins[0]) / 100);
-    return (this.props.yDomain[1] - value).toFixed(precision);
+    return (Number(this.props.yDomain[1]) - value).toFixed(precision);
   }
 
   /**
@@ -385,6 +385,30 @@ export default class Chart extends React.Component {
     const l = this.canvas.layers[`${layer}Layer`];
     if (l) {
       l.batchDraw();
+    }
+  }
+
+  /**
+   * Gets or sets current dataset config
+   * @param dataset string dataset name
+   * @param config object Konva config object
+   * @return {*} object
+   */
+  datasetConfig(dataset, config = null) {
+
+    if (this._datasets[dataset]) {
+
+      // If config is not set, get current dataset config
+      if (!config) {
+        return this._datasets[dataset].config();
+      }
+
+      // Update dataset configs (will merge old and new)
+      this._datasets[dataset].config(config);
+      // Update visual signal
+      this.refreshLayer("points");
+      // Return renderable dataset points
+      return config;
     }
   }
 
@@ -402,7 +426,6 @@ export default class Chart extends React.Component {
 
       // Points not set, get current dataset points
       if (!points) {
-
         return this._datasets[dataset].data();
       }
 
@@ -442,6 +465,7 @@ export default class Chart extends React.Component {
                 />)
             })
           }
+          <Line points={[0, 0, this.trimDims[0], 0]} {...config.axisTickLine} />
           {
             this.getVerticalGrid(this.yTicksCount).map((grid, index) => {
               return (

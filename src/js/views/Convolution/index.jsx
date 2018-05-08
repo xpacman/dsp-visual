@@ -8,6 +8,7 @@ import styles from "./convolution.scss";
 const Decimal = require('decimal.js-light');
 import {Rect, Text} from "react-konva";
 import ConvolutionEngine from "../../utils/ConvolutionEngine";
+import * as Presets from "../../partials/SignalPresets";
 import {Chart, Scroller} from "../../components";
 import {max, min} from "d3-array";
 import Signal from "../../partials/Signal";
@@ -20,16 +21,11 @@ export default class Convolution extends React.Component {
     super(props);
     this.state = {
       dropdowns: {
-        inputValues: false,
-        signals: false
+        samplingRate: false,
+        inputSignals: false,
+        kernelSignals: false
       },
-      inputValid: true,
-      //inputValues: Signals.generateSinSignal()
-      inputValues: {
-        x: [[0, 2], [1, 3], [2, 1.5], [2.5, 0.8], [4, 2.8]], // x input signal
-        h: [[0, 0], [1, 4], [2, 3], [2.5, 2], [4, 1]] // h kernel signal
-      },
-      samplingRate: 5 // Sampling frequency in Hz
+      samplingRate: 1 // Sampling frequency in Hz
     };
 
     // Slider progress
@@ -40,9 +36,9 @@ export default class Convolution extends React.Component {
     this.outputChartYDomain = [-3, 3];
 
     // Signals
-    this.timeDomain = [-1, 1]; // Time domain for signals
-    this.draggableTimeDomain = [-2, 2]; // Time domain for dragging
-    this.draggableStep = 0.2;
+    this.timeDomain = [-5, 5]; // Time domain for signals
+    this.draggableTimeDomain = [-10, 10]; // Time domain for dragging
+    this.draggableStep = 1;
     this.kernelSignal = new Signal(); // Kernel signal
     this.inputSignal = new Signal(); // Input signal
     this.inputSignalSampled = new Signal([], this.draggableTimeDomain[0]); // Discrete input signal
@@ -53,7 +49,7 @@ export default class Convolution extends React.Component {
     this.resetSignals(true);
 
     // Refs
-    this.inputValues = null; // Input values ref
+    this.samplingRate = null; // Sampling frequency ref
     this.kernelChartWrapper = null; // Kernel Chart wrapper ref
     this.inputChartWrapper = null; // Input Chart wrapper ref
     this.outputChartWrapper = null; // Output Chart wrapper ref
@@ -79,9 +75,6 @@ export default class Convolution extends React.Component {
     this.setState({dropdowns: {...this.state.dropdowns, [dropdown]: !this.state.dropdowns[dropdown]}})
   }
 
-  setSignalPreset(signal) {
-  }
-
   /**
    * Reset signals to initial values
    * @param resetInputs boolean whether or not to reset input (drawable) signal. Default false
@@ -100,16 +93,35 @@ export default class Convolution extends React.Component {
     this.signalOutput.values([]);
   }
 
+  setInputSignal(signal) {
+    this.inputSignal = signal;
+    this.resetApplication();
+    this.computeConvolution();
+  }
+
+  setKernelSignal(signal) {
+    this.kernelSignal = signal;
+    this.resetApplication();
+  }
+
   /**
    * Resets application to the initial state. Empty result, scroller to zero, draggable chart to initial state
    */
-  resetApplication() {
+  resetApplication(state = {}) {
+    this.setState({...this.state, ...state});
     this.resetSignals();
     this.result = [];
     // Reset draggable chart and scroller
     this.moveScroller(0);
     this.draggableChart.datasetPoints("kernelSignalSampled", this.kernelSignalSampled.values());
-    this.forceUpdate();
+  }
+
+  /**
+   * Will set sampling new sampling rate, rerender sampled signal in chart
+   * @param samplingRate number sampling frequency in Hz
+   */
+  setSamplingRate(samplingRate) {
+    this.resetApplication({samplingRate: samplingRate})
   }
 
   /**
@@ -155,6 +167,18 @@ export default class Convolution extends React.Component {
     chart.datasetPoints(signalName, this[signalName].values());
   }
 
+  computeConvolution() {
+    this.result = ConvolutionEngine.convolution(this.inputSignalSampled.values(), this.kernelSignalSampled.values());
+    // Convolution returns samples going from 0 time, we have to set time offset here
+    const xMin = this.inputSignalSampled.xDomain()[0];
+    this.result.map((sample, i) => {
+      sample[0] = (new Decimal(xMin + i * this.draggableStep)).toFixed(2);
+    });
+    // Rescale output chart for new result values
+    this.outputChartXDomain = [this.result[0][0], this.result[this.result.length - 1][0]];
+    this.outputChartYDomain = [-3, 3];
+  }
+
   /**
    * Handles mouse up event upon drawable chart
    * @param signalName string name of the this variable containing signal which is being drawed
@@ -162,17 +186,7 @@ export default class Convolution extends React.Component {
    */
   onDrawableChartMouseUp(signalName, chart) {
     // Compute convolution on mouse up, save values as array
-    this.result = ConvolutionEngine.convolution(this.inputSignalSampled.values(), this.kernelSignalSampled.values());
-    // Convolution returns samples going from 0 time, we have to set time offset here
-    const xMin = this.inputSignalSampled.xDomain()[0];
-    let xMax = 0;
-    this.result.map((sample, i) => {
-      sample[0] = (new Decimal(xMin + i * this.draggableStep)).toFixed(2);
-      xMax = sample[0];
-    });
-    // Rescale output chart for new result values
-    this.outputChartXDomain = [xMin, xMax];
-    this.outputChartYDomain = [-3, 3];
+    this.computeConvolution();
     this.forceUpdate();
   }
 
@@ -204,82 +218,84 @@ export default class Convolution extends React.Component {
   }
 
   render() {
-    const {dropdowns, inputValues, inputValid, samplingRate} = this.state,
-      offsetX = this.inputSignalSampled.timeOffset();
+    const {dropdowns, samplingRate} = this.state,
+      offsetX = this.inputSignalSampled.timeOffset(),
+      samplingPeriod = new Decimal(1 / samplingRate);
 
     return (
       <div className={styles.container}>
         <Navbar dark className={styles.navbar}>
           <Nav>
-            <NavItem className="d-inline-flex align-items-center px-3 polyEquation">
+            <NavItem className="d-inline-flex align-items-center px-3">
               Diskrétní lineární konvoluce
             </NavItem>
+
             <UncontrolledDropdown nav inNavbar
                                   className="d-inline-flex align-items-center px-3"
-                                  isOpen={dropdowns.signals}
-                                  toggle={this.toggleDropdown.bind(this, "signals")}>
+                                  isOpen={dropdowns.inputSignals}
+                                  toggle={this.toggleDropdown.bind(this, "inputSignals")}>
               <DropdownToggle nav caret>
-                Signál
+                Vstupní signál
               </DropdownToggle>
-              <DropdownMenu >
-                <DropdownItem onClick={this.setSignalPreset.bind(this, "sin")}>
+              <DropdownMenu>
+                <DropdownItem
+                  onClick={this.setInputSignal.bind(this, Presets.getSinSignal(this.timeDomain[0], this.timeDomain[1]))}>
                   Sinusový
                 </DropdownItem>
-                <DropdownItem>
-                  Diracův impuls
+                <DropdownItem
+                  onClick={this.setInputSignal.bind(this, Presets.getRectSignal(this.timeDomain[0], this.timeDomain[1], 1))}>
+                  Obdélníkový
                 </DropdownItem>
-                <DropdownItem>
-                  Exponenciála nahoru
+                <DropdownItem
+                  onClick={this.setInputSignal.bind(this, Presets.getSawtoothSignal(this.timeDomain[0], this.timeDomain[1], 1, 4))}>
+                  Pilovitý
                 </DropdownItem>
-                <DropdownItem>
+                <DropdownItem
+                  onClick={this.setInputSignal.bind(this, Presets.getExpDownSignal(this.timeDomain[0], this.timeDomain[1]))}>
                   Exponenciála dolů
                 </DropdownItem>
+                <DropdownItem
+                  onClick={this.setInputSignal.bind(this, Presets.getExpUpSignal(this.timeDomain[0], this.timeDomain[1]))}>
+                  Exponenciála nahoru
+                </DropdownItem>
               </DropdownMenu>
             </UncontrolledDropdown>
+
             <UncontrolledDropdown nav inNavbar
                                   className="d-inline-flex align-items-center px-3"
-                                  isOpen={dropdowns.inputValues}
-                                  toggle={this.toggleDropdown.bind(this, "inputValues")}>
+                                  isOpen={dropdowns.kernelSignals}
+                                  toggle={this.toggleDropdown.bind(this, "kernelSignals")}>
               <DropdownToggle nav caret>
-                Vstupní hodnoty
+                Výstupní signál
               </DropdownToggle>
-              <DropdownMenu className="px-3">
-                <FormGroup>
-                  <Label for="exampleText">Vstupní hodnoty x1,y1,...</Label>
-                  <Input placeholder="x1, y1, x2, y2,..."
-                         type="textarea"
-                         innerRef={(input) => this.inputValues = input}
-                         defaultValue={inputValues.x.join()}
-                         onChange={(event) => this.inputValues.value = event.target.value}
-                         onBlur={() => {
-                           // Because we are processing points as array of arrays in our engine [[x1, y1],...]
-                           // we need to make this array of arrays from string input
-                           const input = this.inputValues.value.split(",");
-
-                           // Check count of the values
-                           if (input.length % 2 === 0 && input.length >= 4) {
-
-                             const values = [];
-                             input.map((item, index) => {
-                               if (index % 2 === 0) {
-                                 values.push([parseFloat(item, 10), parseFloat(input[index + 1], 10)])
-                               }
-                             });
-
-                             // All is good => set values to state
-                             if (values.find((element) => isNaN(element[0]) || isNaN(element[1])) === undefined) {
-                               this.setState({inputValues: values, inputValid: true});
-                               return true;
-                             }
-                           }
-
-                           this.setState({inputValid: false});
-                           return 0;
-                         }}
-                  />
-                </FormGroup>
+              <DropdownMenu>
+                <DropdownItem
+                  onClick={this.setKernelSignal.bind(this, Presets.getSinSignal(this.timeDomain[0], this.timeDomain[1]))}>
+                  Sinusový
+                </DropdownItem>
+                <DropdownItem
+                  onClick={this.setKernelSignal.bind(this, Presets.getRectSignal(this.timeDomain[0], this.timeDomain[1], 1))}>
+                  Obdélníkový
+                </DropdownItem>
+                <DropdownItem
+                  onClick={this.setKernelSignal.bind(this, Presets.getSawtoothSignal(this.timeDomain[0], this.timeDomain[1], 1, 4))}>
+                  Pilovitý
+                </DropdownItem>
+                <DropdownItem
+                  onClick={this.setKernelSignal.bind(this, Presets.getExpDownSignal(this.timeDomain[0], this.timeDomain[1]))}>
+                  Exponenciála dolů
+                </DropdownItem>
+                <DropdownItem
+                  onClick={this.setKernelSignal.bind(this, Presets.getExpUpSignal(this.timeDomain[0], this.timeDomain[1]))}>
+                  Exponenciála nahoru
+                </DropdownItem>
               </DropdownMenu>
             </UncontrolledDropdown>
+
+            <NavItem className="d-inline-flex align-items-center px-3">
+              <span className="pr-3">f<sub>vz</sub> = {samplingRate.toFixed(3)}Hz</span>
+              <span className="pr-3">T<sub>vz</sub> = {samplingPeriod.toFixed(3)}s</span>
+            </NavItem>
           </Nav>
         </Navbar>
 
@@ -431,14 +447,30 @@ export default class Convolution extends React.Component {
                                                   height={this.draggableChartWrapper.offsetHeight}
                                                   xAxisLabel={"t"}
                                                   xTicksCount={20}
-                                                  labels={[{
-                                                    x: 20,
-                                                    y: 0,
-                                                    width: 50,
-                                                    height: 20,
-                                                    content: <Text ref={(text => this.draggableChartOffsetLabel = text)}
-                                                                   text={`t = ${offsetX}`} {...config.chartLabelText} />
-                                                  }]}
+                                                  labels={[
+                                                    {
+                                                      x: 20,
+                                                      y: 0,
+                                                      width: 50,
+                                                      height: 20,
+                                                      content: <Text text={"Vzorkovaný h(t)"} {...config.chartLabelText} />
+                                                    },
+                                                    {
+                                                      x: 120,
+                                                      y: 0,
+                                                      width: 50,
+                                                      height: 20,
+                                                      content: <Text text={"Vzorkovaný x(t)"} {...config.chartLabelText} />
+                                                    },
+                                                    {
+                                                      x: 220,
+                                                      y: 0,
+                                                      width: 50,
+                                                      height: 20,
+                                                      content: <Text
+                                                        ref={(text => this.draggableChartOffsetLabel = text)}
+                                                        text={`t = ${offsetX}`} {...config.chartLabelText} />
+                                                    }]}
                                                   clickSafe={true}
                                                   xStep={this.draggableStep}
                                                   xDomain={this.draggableTimeDomain}
