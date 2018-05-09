@@ -102,6 +102,7 @@ export default class Convolution extends React.Component {
   setKernelSignal(signal) {
     this.kernelSignal = signal;
     this.resetApplication();
+    this.computeConvolution();
   }
 
   /**
@@ -117,7 +118,7 @@ export default class Convolution extends React.Component {
   }
 
   /**
-   * Will set sampling new sampling rate, rerender sampled signal in chart
+   * Will set new sampling rate, rerender sampled signal in chart
    * @param samplingRate number sampling frequency in Hz
    */
   setSamplingRate(samplingRate) {
@@ -145,7 +146,6 @@ export default class Convolution extends React.Component {
     const pointsToSet = this[signalName].getPointsInRange(min, max);
     // Set the points
     pointsToSet.forEach(point => this[signalName].setPoint(point[0], chart.getCordYValue(chart.pointerPosition.y)));
-    // Set points for both, this chart and draggable chart
     chart.datasetPoints(signalName, this[signalName].values());
     this[`${signalName}Sampled`].values(Signal.getSamples(this.state.samplingRate, this[signalName]));
   }
@@ -163,7 +163,6 @@ export default class Convolution extends React.Component {
     this[signalName].setPoint(newPoint[0], newPoint[1]);
     // Make discrete signal
     this[`${signalName}Sampled`].values(Signal.getSamples(this.state.samplingRate, this[signalName]));
-    // Set points for both, this chart and draggable chart
     chart.datasetPoints(signalName, this[signalName].values());
   }
 
@@ -205,7 +204,7 @@ export default class Convolution extends React.Component {
     // Convolution result up to this scroller position progress
     const convResult = this.result.slice(0, this.result.findIndex((point => point[0] === offsetX.plus(this.inputSignalSampled.xDomain()[1]).toFixed(2))) + 1),
       lastPoint = convResult.length > 0 ? convResult[convResult.length - 1][1] : 0;
-    this.draggableChartOffsetLabel.setAttr("text", `t = ${offsetX.toFixed(2)}`);
+    this.draggableChartOffsetLabel.setAttr("text", `Zpoždění = ${offsetX.toFixed(2)}`);
     this.draggableChart.refreshLayer("labels");
     // Handle step signal
     this.stepSignal.values([[0, lastPoint]]);
@@ -453,14 +452,16 @@ export default class Convolution extends React.Component {
                                                       y: 0,
                                                       width: 50,
                                                       height: 20,
-                                                      content: <Text text={"Vzorkovaný h(t)"} {...config.chartLabelText} />
+                                                      content: <Text
+                                                        text={"Vzorkovaný h(t)"} {...config.chartLabelText} />
                                                     },
                                                     {
                                                       x: 120,
                                                       y: 0,
                                                       width: 50,
                                                       height: 20,
-                                                      content: <Text text={"Vzorkovaný x(t)"} {...config.chartLabelText} />
+                                                      content: <Text
+                                                        text={"Vzorkovaný x(t)"} {...config.chartLabelText} />
                                                     },
                                                     {
                                                       x: 220,
@@ -469,7 +470,7 @@ export default class Convolution extends React.Component {
                                                       height: 20,
                                                       content: <Text
                                                         ref={(text => this.draggableChartOffsetLabel = text)}
-                                                        text={`t = ${offsetX}`} {...config.chartLabelText} />
+                                                        text={`Zpoždění = ${offsetX}`} {...config.chartLabelText} />
                                                     }]}
                                                   clickSafe={true}
                                                   xStep={this.draggableStep}

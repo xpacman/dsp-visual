@@ -36,6 +36,8 @@ export default class Chart extends React.Component {
     yTicksCount: PropTypes.number,
     // Labels for this chart. Will be displayed as Konva Rect. You can pass [{x, y, width, height, config: <object Konva props>, content: <element>}]
     labels: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
+    // Offsets of the labels {x: [horizontal, vertical], y: [...]}
+    labelOffsets: PropTypes.object,
     // horizontal size of the chart [min, max]
     xRange: PropTypes.array,
     // X axis steps (crosshairs use this)
@@ -70,6 +72,7 @@ export default class Chart extends React.Component {
     xDomain: [0, 1],
     yDomain: [0, 1],
     tickMargins: {x: [0, 20], y: [20, 0]},
+    labelOffsets: {x: [0, 0], y: [0, 0]},
     datasets: {},
     clickSafe: false
   };
@@ -447,7 +450,7 @@ export default class Chart extends React.Component {
   }
 
   render() {
-    const {wrapper, width, height, margins, tickMargins, datasets, xAxisLabel, yAxisLabel, xDomain, xRange, yDomain, yRange, children} = this.props;
+    const {wrapper, width, height, margins, tickMargins, datasets, xAxisLabel, yAxisLabel, labelOffsets} = this.props;
 
     return (
       <Stage ref={(stage) => this.canvas.stage = stage}
@@ -498,6 +501,8 @@ export default class Chart extends React.Component {
                 width={width} height={margins[2]}/>
           {
             xAxisLabel && <Text text={`${xAxisLabel} →`} x={this.trimDims[0] - margins[1] / 2}
+                                offsetX={labelOffsets.x[0]}
+                                offsetY={labelOffsets.x[1]}
                                 y={this.trimDims[1] / 2 + 5} {...config.axisLabel}/>
           }
           <Line
@@ -520,6 +525,8 @@ export default class Chart extends React.Component {
           }
           {
             yAxisLabel && <Text text={`${yAxisLabel} ↑`} x={this.trimDims[0] / 2 - margins[3] - 5}
+                                offsetX={labelOffsets.y[0]}
+                                offsetY={labelOffsets.y[1]}
                                 y={margins[0] / 2} {...config.axisLabel}/>
           }
           <Line

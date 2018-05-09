@@ -150,6 +150,39 @@ module.exports = {
       offsetX: 15
     }
   },
+  correlationInputChart: {
+    line: {
+      stroke: "#DFB126",
+      lineWidth: 5,
+      lineJoin: "round"
+    },
+    rect: {
+      fill: "rgba(170, 16, 37, 0.8)",
+      stroke: "#D4243C"
+    }
+  },
+  correlationOutputChart: {
+    line: {
+      stroke: "#B8D725",
+      lineWidth: 5,
+      lineJoin: "round"
+    },
+    rect: {
+      fill: "rgba(108, 198, 34, 0.8",
+      stroke: "#B8D725"
+    }
+  },
+  correlationReceivedChart: {
+    line: {
+      stroke: "#df4b26",
+      lineWidth: 5,
+      lineJoin: "round"
+    },
+    rect: {
+      fill: "rgba(223, 77, 38, 0.8)",
+      stroke: "#df4b26"
+    }
+  },
   scroller: {
     scroller: {
       fill: "#17191E"

@@ -9,6 +9,7 @@ import NotFound from './views/NotFound';
 import Regression from './views/Regression';
 import Interpolation from './views/Interpolation';
 import Convolution from './views/Convolution';
+import Correlation from './views/Correlation';
 
 export default class App extends Component {
 
@@ -23,6 +24,7 @@ export default class App extends Component {
               <Route path="/regrese" component={Regression}/>
               <Route path="/interpolace" component={Interpolation}/>
               <Route path="/linearni-konvoluce" component={Convolution}/>
+              <Route path="/krizova-korelace" component={Correlation}/>
               <Route component={NotFound}/>
             </Switch>
           </div>
