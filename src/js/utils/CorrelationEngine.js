@@ -42,4 +42,65 @@ export default class CorrelationEngine {
     noise.generateValues(xMin, xMax, xStep, (x => (Math.random() * (maxAmplitude - minAmplitude) + minAmplitude)));
     return noise;
   }
+
+  static crossCorrelation(xSignalValues, ySignalValues, maxShift) {
+
+    // Inputs have to be of the same length
+    if (xSignalValues.length !== ySignalValues.length) {
+      throw "Input signals have to be of the same length!"
+    }
+
+    let shiftingValues = [];
+
+    for (let i = -ySignalValues.length + 1; i < ySignalValues.length; i++) {
+      // Shift values
+      shiftingValues = this.shift(ySignalValues, i);
+      // Compute dot product from shifted values
+      //console.log("shift: ", i, "dot:", this.dotProduct(xSignalValues, shiftingValues));
+    }
+  }
+
+  /**
+   * Shift values (x stays the same, y will be shifted)
+   * @param input array of points [[x0,y0],...]
+   * @param shift number to shift values by
+   * @return {Array} array of arrays [[x0, y0],...]
+   */
+  static shift(input, shift) {
+    const ret = [];
+
+    for (let i = 0; i < input.length; i++) {
+      // x value stays the same, y pre-padding by zero
+      ret[i] = [input[i][0], 0];
+
+      // shift the y value
+      if ((shift + i >= 0) && (shift + i < input.length)) {
+        ret[i][1] = input[shift + i][1];
+      }
+    }
+    // Return shifted array
+    return ret;
+  }
+
+  /**
+   * Computes a dot product used in cross correlation
+   * @param xSignalValues array of arrays [x0,y0],...]
+   * @param ySignalValues array of arrays [x0,y0],...]
+   * @return {number} dot product
+   */
+  static dotProduct(xSignalValues, ySignalValues) {
+
+    // Inputs have to be of the same length
+    if (xSignalValues.length !== ySignalValues.length) {
+      throw "Input signals have to be of the same length!"
+    }
+
+    let sum = 0;
+
+    for (let i = 0; i < xSignalValues.length; i++) {
+      sum += xSignalValues[i][1] * ySignalValues[i][1];
+    }
+
+    return sum;
+  }
 }

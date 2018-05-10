@@ -162,14 +162,23 @@ module.exports = {
     }
   },
   correlationOutputChart: {
-    line: {
-      stroke: "#B8D725",
-      lineWidth: 5,
-      lineJoin: "round"
+    receivedSignal: {
+      line: {
+        stroke: "rgba(223, 77, 38, 0.5)",
+        lineWidth: 5,
+        lineJoin: "round"
+      }
     },
-    rect: {
-      fill: "rgba(108, 198, 34, 0.8",
-      stroke: "#B8D725"
+    inputSignal: {
+      line: {
+        stroke: "#B8D725",
+        lineWidth: 5,
+        lineJoin: "round"
+      },
+      rect: {
+        fill: "rgba(108, 198, 34, 0.8",
+        stroke: "#B8D725"
+      }
     }
   },
   correlationReceivedChart: {

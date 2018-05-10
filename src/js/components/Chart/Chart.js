@@ -59,7 +59,11 @@ export default class Chart extends React.Component {
     // Content mouse drag callback
     onContentMousedrag: PropTypes.func,
     // Ignore mousedown and mouseup events on this chart
-    clickSafe: PropTypes.bool
+    clickSafe: PropTypes.bool,
+    // Crosshair for x axis hidden
+    xCrosshairDisabled: PropTypes.bool,
+    // Crosshair for y axis hidden
+    yCrosshairDisabled: PropTypes.bool
   };
 
   static defaultProps = {
@@ -74,7 +78,9 @@ export default class Chart extends React.Component {
     tickMargins: {x: [0, 20], y: [20, 0]},
     labelOffsets: {x: [0, 0], y: [0, 0]},
     datasets: {},
-    clickSafe: false
+    clickSafe: false,
+    xCrosshairDisabled: false,
+    yCrosshairDisabled: false
   };
 
   constructor(props) {
@@ -264,16 +270,23 @@ export default class Chart extends React.Component {
   handleCrosshairsMove(cursorPosition) {
     // Crosshair line and text are grouped for synchronized moving
     const xCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[0],
-      yCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[1];
-    xCrosshairGroup.setAttr("x", cursorPosition.x - this.props.margins[3]);
-    yCrosshairGroup.setAttr("y", cursorPosition.y - this.props.margins[0]);
-    const xText = xCrosshairGroup.getChildren()[1],
+      yCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[1],
+      xText = xCrosshairGroup.getChildren()[1],
       yText = yCrosshairGroup.getChildren()[1];
-    xText.setAttr("text", this.getCordXValue(xCrosshairGroup.getPosition().x + this.props.margins[3], 2));
-    yText.setAttr("text", this.getCordYValue(yCrosshairGroup.getPosition().y + this.props.margins[0], 2));
+
+    if (!this.props.xCrosshairDisabled) {
+      xCrosshairGroup.setAttr("x", cursorPosition.x - this.props.margins[3]);
+      xText.setAttr("text", this.getCordXValue(xCrosshairGroup.getPosition().x + this.props.margins[3], 2));
+    }
+
+    if (!this.props.yCrosshairDisabled) {
+      yCrosshairGroup.setAttr("y", cursorPosition.y - this.props.margins[0]);
+      yText.setAttr("text", this.getCordYValue(yCrosshairGroup.getPosition().y + this.props.margins[0], 2));
+    }
+
     this.canvas.layers.crosshairsLayer.batchDraw();
 
-    this.xTicks.map((tick, index) => {
+    !this.props.xCrosshairDisabled && this.xTicks.map((tick, index) => {
       // Crosshair is overlapping tick -> hide tick
       if (tick) {
 
@@ -287,7 +300,7 @@ export default class Chart extends React.Component {
       }
     });
 
-    this.yTicks.map((tick, index) => {
+    !this.props.yCrosshairDisabled && this.yTicks.map((tick, index) => {
       // Crosshair is overlapping tick -> hide tick
       if (tick) {
 

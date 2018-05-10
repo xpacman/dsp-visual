@@ -32,7 +32,7 @@ export default class Convolution extends React.Component {
     this.progress = 0;
     // Convolution result
     this.result = [];
-    this.outputChartXDomain = [-1, 3];
+    this.outputChartXDomain = [-5, 15];
     this.outputChartYDomain = [-3, 3];
 
     // Signals
@@ -204,7 +204,7 @@ export default class Convolution extends React.Component {
     // Convolution result up to this scroller position progress
     const convResult = this.result.slice(0, this.result.findIndex((point => point[0] === offsetX.plus(this.inputSignalSampled.xDomain()[1]).toFixed(2))) + 1),
       lastPoint = convResult.length > 0 ? convResult[convResult.length - 1][1] : 0;
-    this.draggableChartOffsetLabel.setAttr("text", `Zpoždění = ${offsetX.toFixed(2)}`);
+    this.draggableChartOffsetLabel.setAttr("text", `Zpoždění = ${offsetX.toFixed(2)}ms`);
     this.draggableChart.refreshLayer("labels");
     // Handle step signal
     this.stepSignal.values([[0, lastPoint]]);
@@ -292,8 +292,8 @@ export default class Convolution extends React.Component {
             </UncontrolledDropdown>
 
             <NavItem className="d-inline-flex align-items-center px-3">
-              <span className="pr-3">f<sub>vz</sub> = {samplingRate.toFixed(3)}Hz</span>
-              <span className="pr-3">T<sub>vz</sub> = {samplingPeriod.toFixed(3)}s</span>
+              <span className="pr-3">f<sub>vz</sub> = {samplingRate.toFixed(2)}kHz</span>
+              <span className="pr-3">T<sub>vz</sub> = {samplingPeriod.toFixed(2)}ms</span>
             </NavItem>
           </Nav>
         </Navbar>
@@ -305,7 +305,8 @@ export default class Convolution extends React.Component {
                                               wrapper={this.inputChartWrapper}
                                               width={this.inputChartWrapper.offsetWidth}
                                               height={this.inputChartWrapper.offsetHeight}
-                                              xAxisLabel={"t"}
+                                              xAxisLabel={"t [ms]"}
+                                              labelOffsets={{x: [20, 0], y: [0, 0]}}
                                               labels={{
                                                 x: 20,
                                                 y: 0,
@@ -339,10 +340,12 @@ export default class Convolution extends React.Component {
                                              wrapper={this.stepChartWrapper}
                                              width={this.stepChartWrapper.offsetWidth}
                                              height={this.stepChartWrapper.offsetHeight}
-                                             xAxisLabel={"t"}
+                                             xAxisLabel={"t [ms]"}
+                                             labelOffsets={{x: [20, 0], y: [0, 0]}}
                                              clickSafe={true}
-                                             xTicksCount={2}
+                                             xTicksCount={1}
                                              xStep={1}
+                                             xCrosshairDisabled={true}
                                              labels={{
                                                x: 20,
                                                y: 0,
@@ -350,7 +353,7 @@ export default class Convolution extends React.Component {
                                                height: 20,
                                                content: <Text text="x(n) ∗ h(t - n)" {...config.chartLabelText} />
                                              }}
-                                             xDomain={this.timeDomain}
+                                             xDomain={[-1, 1]}
                                              yDomain={this.outputChartYDomain}
                                              datasets={{
                                                stepSignal: {
@@ -371,7 +374,8 @@ export default class Convolution extends React.Component {
             {this.kernelChartWrapper && <Chart wrapper={this.kernelChartWrapper}
                                                width={this.kernelChartWrapper.offsetWidth}
                                                height={this.kernelChartWrapper.offsetHeight}
-                                               xAxisLabel={"t"}
+                                               xAxisLabel={"t [ms]"}
+                                               labelOffsets={{x: [20, 0], y: [0, 0]}}
                                                labels={{
                                                  x: 20,
                                                  y: 0,
@@ -408,7 +412,8 @@ export default class Convolution extends React.Component {
                                                wrapper={this.outputChartWrapper}
                                                width={this.outputChartWrapper.offsetWidth}
                                                height={this.outputChartWrapper.offsetHeight}
-                                               xAxisLabel={"t"}
+                                               xAxisLabel={"t [ms]"}
+                                               labelOffsets={{x: [20, 0], y: [0, 0]}}
                                                yAxisLabel={"y(t)"}
                                                xTicksCount={21}
                                                labels={{
@@ -444,7 +449,8 @@ export default class Convolution extends React.Component {
                                                   wrapper={this.draggableChartWrapper}
                                                   width={this.draggableChartWrapper.offsetWidth}
                                                   height={this.draggableChartWrapper.offsetHeight}
-                                                  xAxisLabel={"t"}
+                                                  xAxisLabel={"t [ms]"}
+                                                  labelOffsets={{x: [20, 0], y: [0, 0]}}
                                                   xTicksCount={20}
                                                   labels={[
                                                     {
@@ -470,7 +476,7 @@ export default class Convolution extends React.Component {
                                                       height: 20,
                                                       content: <Text
                                                         ref={(text => this.draggableChartOffsetLabel = text)}
-                                                        text={`Zpoždění = ${offsetX}`} {...config.chartLabelText} />
+                                                        text={`Zpoždění = ${offsetX}ms`} {...config.chartLabelText} />
                                                     }]}
                                                   clickSafe={true}
                                                   xStep={this.draggableStep}

@@ -54,7 +54,7 @@ export default class Signal {
   /**
    * Gets or sets signal values
    * @param values array of arrays [[x0, y0], ...]
-   * @param withOffset boolean whether or not to consider current time offset
+   * @param withOffset boolean|number when true, current time offset will be considered, if number, values will be offseted by this value
    * @param timeReverse boolean whether or not to reverse current values in time
    * @return {Signal.values} array of values [x0, y0, x1, y1,...]
    */
@@ -68,10 +68,11 @@ export default class Signal {
         vals = this.timeReverse();
       }
 
-      // If current time offset should be considered
+      // Handle time offset
       if (withOffset) {
+        // If current time offset should be considered
+        const offset = new Decimal(Number(withOffset === true ? this.timeOffset() : withOffset));
         ret = [];
-        const offset = new Decimal(this.timeOffset());
         vals.forEach(point => {
           ret.push([((new Decimal(point[0])).plus(offset)).toFixed(2), point[1]]);
         });
@@ -128,12 +129,10 @@ export default class Signal {
    * @return array|undefined
    */
   getPoint(x) {
-    if (!isNaN(x)) {
-      x = new Decimal(x);
-      x = x.toFixed(2);
-    }
+    x = new Decimal(Number(x));
+    x = x.toFixed(2);
     return this._values.find(point => {
-      return point[0] === x
+      return (new Decimal(point[0])).toFixed(2) === x
     });
   }
 
@@ -188,7 +187,7 @@ export default class Signal {
         // Get nearest point index
         const nearest = findIndexOfNearest(this._values, (point => point[0]), x);
         // Check wheter to put new point before or after this nearest point
-        if (this._values[nearest][0] > x) {
+        if (Number(this._values[nearest][0]) >= Number(x)) {
           this._values.splice(nearest, 0, [x, y]);
         } else {
           this._values.splice(nearest + 1, 0, [x, y]);
@@ -237,6 +236,26 @@ export default class Signal {
     }
 
     return this._timeOffset = offset;
+  }
+
+  /**
+   * Will merge values of this signal with values given. Local values will be preserved. If onlyX param is true, only x values will be added
+   * and y values will be padded with zeros
+   * @param values array of arrays [[x0,y0],...]
+   * @param onlyX boolean if true, only points with zero value (padding) will be added
+   * @return array of arrays [[x0,y0],...] merged values
+   */
+  mergeValues(values, onlyX = false) {
+
+    values.forEach(point => {
+      if (!this.getPoint(point[0])) {
+        this.setPoint(point[0], onlyX ? 0 : point[1])
+      }
+    });
+
+    this.xDomain([this._values[0][0], this._values[this._values.length - 1][0]]);
+
+    return this._values;
   }
 
 }

@@ -46,6 +46,7 @@ export default class Correlation extends React.Component {
     this.signalOutput = new Signal(); // Output (result) signal -> Cross correlation function
     // Reset signals will set initial values
     this.resetSignals(true);
+    this.computeCorrelation();
 
     // Refs
     this.samplingRate = null; // Sampling frequency input ref
@@ -74,11 +75,15 @@ export default class Correlation extends React.Component {
 
   componentDidUpdate(prevProps, prevState) {
     // Sampling rate changed
-    if (prevState.samplingRate !== this.state.samplingRate) {
+    if (prevState.samplingRate !== this.state.samplingRate || prevState.noisePerformance !== this.state.noisePerformance) {
       this.inputSignalSampled.values(Signal.getSamples(this.state.samplingRate, this.inputSignal));
-      this.inputChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values());
       this.receiveSignal(this.state.noisePerformance, this.lag);
+      // Input samples changed -> recompute correlation
+      this.computeCorrelation();
+      this.inputChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values());
       this.receivedChart.datasetPoints("receivedSignal", this.receivedSignal.values());
+      this.outputChart.datasetPoints("receivedSignal", this.receivedSignal.values());
+      this.outputChart.datasetPoints("signalOutput", this.signalOutput.values());
     }
   }
 
@@ -100,7 +105,6 @@ export default class Correlation extends React.Component {
   setInputSignal(signal) {
     this.inputSignal = signal;
     this.resetApplication();
-    //this.computeConvolution();
   }
 
   /**
@@ -109,8 +113,13 @@ export default class Correlation extends React.Component {
   resetApplication(state = {}) {
     this.setState({...this.state, ...state});
     this.resetSignals();
+    // Input samples changed -> recompute correlation
+    this.computeCorrelation();
     this.inputChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values());
     this.receivedChart.datasetPoints("receivedSignal", this.receivedSignal.values());
+    this.outputChart.datasetPoints("receivedSignal", this.receivedSignal.values());
+    this.outputChart.datasetPoints("signalOutput", this.signalOutput.values());
+    // Move scroller here
     this.result = [];
   }
 
@@ -128,9 +137,7 @@ export default class Correlation extends React.Component {
    * @param lag number Delay of the received signal
    */
   setNoisePerformance(performance, lag = null) {
-    this.resetApplication({noisePerformance: performance});
-    // Noisify signal using newly set performance
-    this.receiveSignal(performance, lag);
+    this.setState({noisePerformance: performance});
   }
 
   /**
@@ -147,10 +154,11 @@ export default class Correlation extends React.Component {
     if (lag !== null) {
       this.receivedSignal.timeOffset(lag)
     }
-    // Rescale chart to fit amplitude
+    // Rescale charts to fit amplitude
     this.outputAmplitude = this.receivedSignal.getYDomain();
-    if (this.receivedChart) {
-      this.receivedChart.rescale({yDomain: this.outputAmplitude})
+    if (this.receivedChart && this.outputChart) {
+      this.receivedChart.rescale({yDomain: this.outputAmplitude});
+      this.outputChart.rescale({yDomain: this.outputAmplitude});
     }
   }
 
@@ -197,8 +205,15 @@ export default class Correlation extends React.Component {
    */
   onDrawableChartMouseUp(signalName, chart) {
     this.resetApplication();
-    this.receiveSignal(this.state.noisePerformance, this.lag);
-    this.receivedChart.datasetPoints("receivedSignal", this.receivedSignal.values());
+  }
+
+  computeCorrelation() {
+    // Correlation have to work with arrays of the same length, use current received lag here in order to merge arrays correctly
+    this.signalOutput.values(this.inputSignalSampled.values(null, 10));
+    this.signalOutput.mergeValues(this.receivedSignal.values(), true);
+    // Compute correlation
+    CorrelationEngine.crossCorrelation(this.signalOutput.values(), this.receivedSignal.values(), 7);
+    console.log("called")
   }
 
   /**
@@ -206,6 +221,8 @@ export default class Correlation extends React.Component {
    * @param position number percentual position of x
    **/
   moveScroller(position) {
+
+
     this.progress = position;
     // Move only by x range steps
     const offsetX = new Decimal(this.outputChart.xRange[findIndexOfNearest(this.outputChart.xRange, (x) => x, (position * (this.draggableTimeDomain[1] - this.draggableTimeDomain[0]) / 100) + this.draggableTimeDomain[0])]);
@@ -371,7 +388,7 @@ export default class Correlation extends React.Component {
                                                  xAxisLabel={"t [ms]"}
                                                  clickSafe={true}
                                                  xTicksCount={10}
-                                                 xStep={1}
+                                                 xStep={0.01}
                                                  labelOffsets={{x: [20, 0], y: [0, 0]}}
                                                  labels={{
                                                    x: 20,
@@ -419,11 +436,15 @@ export default class Correlation extends React.Component {
                                                                 text={`Zpoždění τ = ${Number(this.lag).toFixed(2)}[ms]`} {...config.chartLabelText} />
                                                }]}
                                                xDomain={this.draggableTimeDomain}
-                                               yDomain={[-1, 1]}
+                                               yDomain={this.outputAmplitude}
                                                datasets={{
+                                                 receivedSignal: {
+                                                   data: this.receivedSignal.values(),
+                                                   config: config.correlationOutputChart.receivedSignal.line
+                                                 },
                                                  signalOutput: {
                                                    data: this.signalOutput.values(),
-                                                   config: config.correlationOutputChart.line
+                                                   config: config.correlationOutputChart.inputSignal.line
                                                  }
                                                }}/>
             }
