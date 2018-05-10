@@ -129,10 +129,12 @@ export default class Signal {
    * @return array|undefined
    */
   getPoint(x) {
-    x = new Decimal(Number(x));
-    x = x.toFixed(2);
+    if (!isNaN(x)) {
+      x = new Decimal(x);
+      x = x.toFixed(2);
+    }
     return this._values.find(point => {
-      return (new Decimal(point[0])).toFixed(2) === x
+      return point[0] === x
     });
   }
 
