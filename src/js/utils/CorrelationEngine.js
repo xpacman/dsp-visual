@@ -43,7 +43,13 @@ export default class CorrelationEngine {
     return noise;
   }
 
-  static crossCorrelation(xSignalValues, ySignalValues, maxShift) {
+  /**
+   * Will compute cross correlation using given signal values
+   * @param xSignalValues array of arrays [[x0, y0],...]
+   * @param ySignalValues array of arrays [[x0, y0],...]
+   * @return {array} of arrays containing rate of "similarity" in each shift [[shift, dotProduct],...]
+   */
+  static crossCorrelation(xSignalValues, ySignalValues) {
 
     // Inputs have to be of the same length
     if (xSignalValues.length !== ySignalValues.length) {
@@ -51,13 +57,15 @@ export default class CorrelationEngine {
     }
 
     let shiftingValues = [];
+    const ret = [];
 
     for (let i = -ySignalValues.length + 1; i < ySignalValues.length; i++) {
       // Shift values
       shiftingValues = this.shift(ySignalValues, i);
       // Compute dot product from shifted values
-      //console.log("shift: ", i, "dot:", this.dotProduct(xSignalValues, shiftingValues));
+      ret.push([i, this.dotProduct(xSignalValues, shiftingValues)]);
     }
+    return ret;
   }
 
   /**

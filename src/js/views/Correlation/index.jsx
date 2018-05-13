@@ -1,7 +1,7 @@
 import React from "react";
 import {
   DropdownItem,
-  DropdownMenu, DropdownToggle, FormGroup, Input, Label, Nav, Navbar, NavItem,
+  DropdownMenu, DropdownToggle, FormGroup, Input, Label, Nav, Navbar, NavItem, NavLink,
   UncontrolledDropdown
 } from "reactstrap";
 import styles from "./correlation.scss";
@@ -31,19 +31,21 @@ export default class Correlation extends React.Component {
 
     // Slider progress
     this.progress = 50;
-    // Correlation result
+    // Correlation results
     this.result = [];
     this.outputAmplitude = [-1, 1];
 
     // Signals
-    this.lag = 50; // Lag of the received signal
+    this.draggableOffset = 50; // Offset of the draggable signal
     this.timeDomain = [0, 10]; // Time domain for signals
     this.draggableTimeDomain = [0, 100]; // Time domain for dragging
+    this.lag = this.getRandomLag(); // Lag of the received signal
     this.draggableStep = 1;
     this.inputSignal = Presets.getSinSignal(this.timeDomain[0], this.timeDomain[1]); // Input signal
     this.inputSignalSampled = new Signal(); // Discrete input signal
     this.receivedSignal = new Signal(); // Received signal
-    this.signalOutput = new Signal(); // Output (result) signal -> Cross correlation function
+    this.draggableSignal = new Signal(); // Draggable signal for searching in cross correlation function
+    this.draggableSignal.timeOffset(this.draggableOffset - this.lag);
     // Reset signals will set initial values
     this.resetSignals(true);
     this.computeCorrelation();
@@ -58,6 +60,7 @@ export default class Correlation extends React.Component {
     this.inputChart = null; // Input Chart
     this.receivedChart = null; // Step Chart
     this.outputChartOffsetLabel = null; // Output chart label text
+    this.outputChartCorrelationResultLabel = null; // Correlation result label text
   }
 
   componentDidMount() {
@@ -69,6 +72,10 @@ export default class Correlation extends React.Component {
     }, 1000);
   }
 
+  componentWillUnmount() {
+    window.removeEventListener("resize", () => this.forceUpdate());
+  }
+
   toggleDropdown(dropdown) {
     this.setState({dropdowns: {...this.state.dropdowns, [dropdown]: !this.state.dropdowns[dropdown]}})
   }
@@ -76,20 +83,21 @@ export default class Correlation extends React.Component {
   componentDidUpdate(prevProps, prevState) {
     // Sampling rate changed
     if (prevState.samplingRate !== this.state.samplingRate || prevState.noisePerformance !== this.state.noisePerformance) {
-      this.inputSignalSampled.values(Signal.getSamples(this.state.samplingRate, this.inputSignal));
-      this.receiveSignal(this.state.noisePerformance, this.lag);
+      this.resetSignals();
+      this.moveScroller(this.draggableOffset);
       // Input samples changed -> recompute correlation
       this.computeCorrelation();
       this.inputChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values());
       this.receivedChart.datasetPoints("receivedSignal", this.receivedSignal.values());
       this.outputChart.datasetPoints("receivedSignal", this.receivedSignal.values());
-      this.outputChart.datasetPoints("signalOutput", this.signalOutput.values());
+      // We want default offset here
+      this.outputChart.datasetPoints("draggableSignal", this.draggableSignal.values(null, true));
     }
   }
 
   /**
    * Reset signals to initial values
-   * @param resetInputs boolean whether or not to reset input (drawable) signal. Default false
+   * @param resetInputs boolean whether or not to reset input (drawable) signal into its default
    */
   resetSignals(resetInputs = false) {
 
@@ -99,7 +107,6 @@ export default class Correlation extends React.Component {
     }
     this.inputSignalSampled.values(Signal.getSamples(this.state.samplingRate, this.inputSignal));
     this.receiveSignal(this.state.noisePerformance, this.lag);
-    this.signalOutput.values([]);
   }
 
   setInputSignal(signal) {
@@ -114,13 +121,16 @@ export default class Correlation extends React.Component {
     this.setState({...this.state, ...state});
     this.resetSignals();
     // Input samples changed -> recompute correlation
+    this.moveScroller(this.progress);
     this.computeCorrelation();
     this.inputChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values());
     this.receivedChart.datasetPoints("receivedSignal", this.receivedSignal.values());
     this.outputChart.datasetPoints("receivedSignal", this.receivedSignal.values());
-    this.outputChart.datasetPoints("signalOutput", this.signalOutput.values());
-    // Move scroller here
-    this.result = [];
+    this.outputChart.datasetPoints("draggableSignal", this.draggableSignal.values(null, true));
+  }
+
+  getRandomLag() {
+    return Math.floor(Math.random() * ((this.draggableTimeDomain[1] - 10) - (this.draggableTimeDomain[0] + 10)) + this.draggableTimeDomain[0] + 10);
   }
 
   /**
@@ -137,6 +147,9 @@ export default class Correlation extends React.Component {
    * @param lag number Delay of the received signal
    */
   setNoisePerformance(performance, lag = null) {
+    if (lag !== null) {
+      this.lag = lag;
+    }
     this.setState({noisePerformance: performance});
   }
 
@@ -148,11 +161,11 @@ export default class Correlation extends React.Component {
   receiveSignal(noisePerformance = 1, lag = null) {
     // Generate noise
     const noise = CorrelationEngine.generateWhiteNoise(this.draggableTimeDomain[0], this.draggableTimeDomain[1], 1 / noisePerformance, -noisePerformance, noisePerformance),
-      noisifiedInput = CorrelationEngine.noisifySignal(this.inputSignalSampled, noise, noisePerformance, 10);
+      noisifiedInput = CorrelationEngine.noisifySignal(this.inputSignalSampled, noise, noisePerformance, lag);
 
     this.receivedSignal.values(noisifiedInput.values());
     if (lag !== null) {
-      this.receivedSignal.timeOffset(lag)
+      this.lag = lag;
     }
     // Rescale charts to fit amplitude
     this.outputAmplitude = this.receivedSignal.getYDomain();
@@ -208,12 +221,31 @@ export default class Correlation extends React.Component {
   }
 
   computeCorrelation() {
-    // Correlation have to work with arrays of the same length, use current received lag here in order to merge arrays correctly
-    this.signalOutput.values(this.inputSignalSampled.values(null, 10));
-    this.signalOutput.mergeValues(this.receivedSignal.values(), true);
+    // ensure correlation works with arrays of same length
+    let idx = 0;
+    const input = [],
+      samples = this.inputSignalSampled.values(null, this.lag);
+    this.receivedSignal.values().forEach((point, i) => {
+      input[i] = [point[0], 0];
+      if (samples[idx] && point[0] === samples[idx][0]) {
+        input[i][1] = point[1];
+        idx++;
+      }
+    });
+    // Adjust amplitude
+    samples.map(point => point[1] *= this.state.noisePerformance);
+    this.draggableSignal.values(samples);
+    // Add padding to make draggable signal look pretty
+    this.draggableSignal.setPoint((Number(samples[0][0]) - 0.01), 0);
+    this.draggableSignal.setPoint((Number(samples[samples.length - 1][0]) + 0.01), 0);
+    this.draggableSignal.setPoint(-100, 0);
+    this.draggableSignal.setPoint(200, 0);
     // Compute correlation
-    CorrelationEngine.crossCorrelation(this.signalOutput.values(), this.receivedSignal.values(), 7);
-    console.log("called")
+    this.result = CorrelationEngine.crossCorrelation(input, this.receivedSignal.values());
+  }
+
+  getCorrelationResult(offsetX) {
+    return this.result.find(shift => shift[0] === this.lag - Number(offsetX))[1];
   }
 
   /**
@@ -221,17 +253,17 @@ export default class Correlation extends React.Component {
    * @param position number percentual position of x
    **/
   moveScroller(position) {
-
-
     this.progress = position;
     // Move only by x range steps
-    const offsetX = new Decimal(this.outputChart.xRange[findIndexOfNearest(this.outputChart.xRange, (x) => x, (position * (this.draggableTimeDomain[1] - this.draggableTimeDomain[0]) / 100) + this.draggableTimeDomain[0])]);
-    this.lag = offsetX.toFixed(2);
-    // Set time offset of the signal
-    this.receivedSignal.timeOffset(offsetX.toFixed(2));
+    const offsetX = new Decimal(this.outputChart.xRange[findIndexOfNearest(this.outputChart.xRange, (x) => x, (position * (this.draggableTimeDomain[1] - this.draggableTimeDomain[0]) / 100) + this.draggableTimeDomain[0])]),
+      correlationFunc = this.getCorrelationResult(offsetX); // Correlation function result
+    this.draggableOffset = offsetX;
+    // Set time offset
+    this.draggableSignal.timeOffset(offsetX.minus(this.lag).toFixed(2));
     // Update draggable chart
-    //this.outputChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values(null, true, true));
+    this.outputChart.datasetPoints("draggableSignal", this.draggableSignal.values(null, true));
     this.outputChartOffsetLabel.setAttr("text", `Zpoždění τ = ${offsetX.toFixed(2)}[ms]`);
+    this.outputChartCorrelationResultLabel.setAttr("text", `Rxy(${Number(offsetX).toFixed(2)}) = ${correlationFunc.toFixed(2)}`);
     this.outputChart.refreshLayer("labels");
   }
 
@@ -299,8 +331,7 @@ export default class Correlation extends React.Component {
 
             <NavItem className="d-inline-flex align-items-center px-3">
               <span className="pr-3">f<sub>vz</sub> = {(samplingRate).toFixed(2)}kHz</span>
-              <span
-                className="pr-3">T<sub>vz</sub> = {(1 / samplingRate).toFixed(2)}ms</span>
+              <span className="pr-3">T<sub>vz</sub> = {(1 / samplingRate).toFixed(2)}ms</span>
             </NavItem>
 
             <UncontrolledDropdown nav inNavbar
@@ -319,7 +350,7 @@ export default class Correlation extends React.Component {
                          defaultValue={noisePerformance}
                          onChange={(event) => {
                            if (event.target.value !== "" && event.target.value > 0) {
-                             this.setNoisePerformance(Number(event.target.value))
+                             this.setNoisePerformance(Number(event.target.value), this.getRandomLag())
                            }
                          }}
                   />
@@ -329,6 +360,13 @@ export default class Correlation extends React.Component {
 
             <NavItem className="d-inline-flex align-items-center px-3">
               <span className="pr-3">Šum: {noisePerformance.toFixed(2)}</span>
+            </NavItem>
+
+            <NavItem className="d-inline-flex align-items-center px-3">
+              <NavLink href="#" className="nav-link pr-3" onClick={() => {
+                this.lag = this.getRandomLag();
+                this.resetApplication();
+              }}>Znáhodni šum</NavLink>
             </NavItem>
           </Nav>
         </Navbar>
@@ -433,17 +471,27 @@ export default class Correlation extends React.Component {
                                                  width: 50,
                                                  height: 20,
                                                  content: <Text ref={(text => this.outputChartOffsetLabel = text)}
-                                                                text={`Zpoždění τ = ${Number(this.lag).toFixed(2)}[ms]`} {...config.chartLabelText} />
-                                               }]}
+                                                                text={`Zpoždění τ = ${Number(this.draggableOffset).toFixed(2)}[ms]`} {...config.chartLabelText} />
+                                               },
+                                                 {
+                                                   x: 350,
+                                                   y: 0,
+                                                   width: 50,
+                                                   height: 20,
+                                                   content: <Text
+                                                     ref={(text => this.outputChartCorrelationResultLabel = text)}
+                                                     text={`Rxy(${Number(this.draggableOffset).toFixed(2)}) = ${this.getCorrelationResult(this.draggableOffset).toFixed(2)}`} {...config.chartLabelText} />
+                                                 }]}
                                                xDomain={this.draggableTimeDomain}
                                                yDomain={this.outputAmplitude}
+                                               xStep={1}
                                                datasets={{
                                                  receivedSignal: {
                                                    data: this.receivedSignal.values(),
                                                    config: config.correlationOutputChart.receivedSignal.line
                                                  },
-                                                 signalOutput: {
-                                                   data: this.signalOutput.values(),
+                                                 draggableSignal: {
+                                                   data: this.draggableSignal.values(null, true),
                                                    config: config.correlationOutputChart.inputSignal.line
                                                  }
                                                }}/>
@@ -455,7 +503,7 @@ export default class Correlation extends React.Component {
           <div className={`col-12 ${styles.chartWrapper}`}>
             {this.outputChartWrapper &&
             <Scroller
-              progress={this.progress}
+              progress={Number(this.progress)}
               onScroll={this.moveScroller.bind(this)}
               precision={3}
               width={this.outputChartWrapper.offsetWidth}

@@ -241,17 +241,23 @@ export default class Signal {
   }
 
   /**
-   * Will merge values of this signal with values given. Local values will be preserved. If onlyX param is true, only x values will be added
+   * Will merge values of this signal with values given. If onlyX param is true, only x values will be added
    * and y values will be padded with zeros
    * @param values array of arrays [[x0,y0],...]
-   * @param onlyX boolean if true, only points with zero value (padding) will be added
+   * @param override boolean if true, local values will be overriden, otherwise local values will be preserved.
    * @return array of arrays [[x0,y0],...] merged values
    */
-  mergeValues(values, onlyX = false) {
-
+  mergeValues(values, override = false) {
+    let pnt = null;
     values.forEach(point => {
-      if (!this.getPoint(point[0])) {
-        this.setPoint(point[0], onlyX ? 0 : point[1])
+      pnt = this.getPoint(point[0]);
+      if (!pnt) {
+        this.setPoint(point[0], point[1])
+      } else {
+        // Override current value
+        if (override) {
+          this.setPoint(pnt[0], point[1]);
+        }
       }
     });
 

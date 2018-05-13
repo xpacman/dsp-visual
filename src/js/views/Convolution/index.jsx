@@ -10,7 +10,7 @@ import {Rect, Text} from "react-konva";
 import ConvolutionEngine from "../../utils/ConvolutionEngine";
 import * as Presets from "../../partials/SignalPresets";
 import {Chart, Scroller} from "../../components";
-import {max, min} from "d3-array";
+import {max, min, extent} from "d3-array";
 import Signal from "../../partials/Signal";
 import {findIndexOfNearest} from '../../utils/ArrayUtils';
 import config from "../../config";
@@ -33,7 +33,7 @@ export default class Convolution extends React.Component {
     // Convolution result
     this.result = [];
     this.outputChartXDomain = [-5, 15];
-    this.outputChartYDomain = [-3, 3];
+    this.outputChartYDomain = [-1, 1];
 
     // Signals
     this.timeDomain = [-5, 5]; // Time domain for signals
@@ -69,6 +69,10 @@ export default class Convolution extends React.Component {
       // Listen for window resizes
       window.addEventListener("resize", () => this.forceUpdate());
     }, 1000);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("resize", () => this.forceUpdate());
   }
 
   toggleDropdown(dropdown) {
@@ -169,13 +173,17 @@ export default class Convolution extends React.Component {
   computeConvolution() {
     this.result = ConvolutionEngine.convolution(this.inputSignalSampled.values(), this.kernelSignalSampled.values());
     // Convolution returns samples going from 0 time, we have to set time offset here
-    const xMin = this.inputSignalSampled.xDomain()[0];
+    const xMin = this.inputSignalSampled.xDomain()[0],
+      // Maximum y value of the convolution result
+      resultMaxY = extent(this.result.map(point => point[1]));
     this.result.map((sample, i) => {
       sample[0] = (new Decimal(xMin + i * this.draggableStep)).toFixed(2);
     });
     // Rescale output chart for new result values
     this.outputChartXDomain = [this.result[0][0], this.result[this.result.length - 1][0]];
-    this.outputChartYDomain = [-3, 3];
+    this.outputChartYDomain = (resultMaxY[0] !== 0 && resultMaxY[1] !== 0) ? resultMaxY : [-1, 1];
+
+    this.outputChart.rescale({yDomain: this.outputChartYDomain, xDomain: this.outputChartXDomain});
   }
 
   /**

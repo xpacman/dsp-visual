@@ -49,7 +49,10 @@ export default class Regression extends React.Component {
       // Listen for window resizes
       window.addEventListener("resize", () => this.forceUpdate());
     }, 1000);
+  }
 
+  componentWillUnmount() {
+    window.removeEventListener("resize", () => this.forceUpdate());
   }
 
   componentWillUpdate(nextProps, nextState) {

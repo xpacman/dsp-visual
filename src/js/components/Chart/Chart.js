@@ -183,6 +183,15 @@ export default class Chart extends React.Component {
     }
   }
 
+  componentWillUnmount() {
+    // Unbind events when unmounting the component
+    if (this.canvas.stage) {
+      this.canvas.stage.getStage().off("contentMousedown.proto");
+      this.canvas.stage.getStage().off("contentMouseup.proto");
+      this.canvas.stage.getStage().off("contentMousemove.proto");
+    }
+  }
+
   componentWillReceiveProps(nextProps) {
     // TODO: HANDLE DATASET PROPS CHANGE
 
@@ -497,7 +506,7 @@ export default class Chart extends React.Component {
           {
             Object.keys(datasets).map(key => {
               return (<Dataset key={key} ref={(set) => this._datasets[key] = set}
-                               y={this.trimDims[1] / 2}
+                               y={this.yScale(0)}
                                element={datasets[key].element ? datasets[key].element : "line"}
                                config={datasets[key].config}
                                data={this.datasetPoints(key, datasets[key].data)}/>)
