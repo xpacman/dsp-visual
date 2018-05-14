@@ -22,20 +22,6 @@ export default class InterpolationEngine {
   }
 
   /**
-   * Will sample signal using frequency given and returns array of x positions of samples
-   * @param frequency Number sampling frequency
-   * @param min Number signal min x range
-   * @param max Number signal max x range
-   * @return {Array} Array of x positions of samples
-   */
-  static getSamplePositions(frequency = 0.1, min = 0, max = 10) {
-    const ret = [];
-    for (let i = min; i <= max / frequency; i++)
-      ret.push(i * frequency);
-    return ret
-  }
-
-  /**
    * Returns zero order (stair) interpolation from input values (signal [[x1, y1],...])
    * @param inputValues Array of signal points [[x1, y1],...]
    * @return {Array} of interpolated points [[x1, y1],...]
@@ -57,24 +43,30 @@ export default class InterpolationEngine {
   /**
    * Method will calculate Newton interpolation for given array of x values and returns result as array
    * @param inputValues Array of arrays (input points) [ [x1, y1], [x2, y2],... ] to calculate interpolation polynomial from
-   * @param interpolatedPoints Array || Number X value(s) to calculate interpolation for
+   * @param interpolatedPoints Array || Number X value(s) to calculate interpolation for. By default, all input X values
+   * will be interpolated
    * @return {*} Array of interpolated points [ [x, interpolationResult],... ]
    */
-  static newtonInterpolation(inputValues, interpolatedPoints) {
+  static newtonInterpolation(inputValues, interpolatedPoints = null) {
     // We always need almost two points for interpolation
     if (inputValues.length < 2) {
       return false;
-    }
-
-    // If user entered only one number to calculate interpolation for, make array from it
-    if (!Array.isArray(interpolatedPoints)) {
-      interpolatedPoints = [parseFloat(interpolatedPoints)];
     }
 
     // getNewtonPoly method works with separated x and y values so extract them from input values
     const splitPoints = this.splitPoints(inputValues),
       poly = this.getNewtonPoly(splitPoints[0], splitPoints[1]),
       ret = [];
+
+    // Interpolate all input x values by default
+    if (!interpolatedPoints) {
+      interpolatedPoints = splitPoints[0]
+    }
+
+    // If user entered only one number to calculate interpolation for, make array from it
+    else if (!Array.isArray(interpolatedPoints)) {
+      interpolatedPoints = [parseFloat(interpolatedPoints)];
+    }
 
     // Calculate interpolation for each x point
     // P(x) = a0 + a1 * (x - x0) + a2 * (x - x0)*(x - x1) + a3 * (x - x0)*(x - x1)*(x - x2),...an * (x - x0)*...(x - xn-1)

@@ -472,7 +472,7 @@ export default class Chart extends React.Component {
   }
 
   render() {
-    const {wrapper, width, height, margins, tickMargins, datasets, xAxisLabel, yAxisLabel, labelOffsets} = this.props;
+    const {wrapper, children, width, height, margins, tickMargins, datasets, xAxisLabel, yAxisLabel, labelOffsets} = this.props;
 
     return (
       <Stage ref={(stage) => this.canvas.stage = stage}
@@ -506,11 +506,14 @@ export default class Chart extends React.Component {
           {
             Object.keys(datasets).map(key => {
               return (<Dataset key={key} ref={(set) => this._datasets[key] = set}
-                               y={this.yScale(0)}
+                               y={this.yScale(datasets[key].config.y !== undefined ? datasets[key].config.y : 0)}
                                element={datasets[key].element ? datasets[key].element : "line"}
                                config={datasets[key].config}
                                data={this.datasetPoints(key, datasets[key].data)}/>)
             })
+          }
+          {
+            children && (typeof children === "function" ? children(this) : children)
           }
         </Layer>
 

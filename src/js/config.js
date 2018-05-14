@@ -43,15 +43,22 @@ module.exports = {
     align: "center",
     offsetY: -3
   },
+  regressionChart: {
+    line: {
+      stroke: "#DFB126",
+      lineWidth: 5,
+      lineJoin: "round"
+    },
+    leastSquares: {
+      stroke: "red",
+      fill: "rgba(255, 50, 50, 0.6)",
+    }
+  },
   signalLine: {
     stroke: "green",
     strokeWidth: 3,
     lineCap: "round",
     lineJoin: "round"
-  },
-  leastSquares: {
-    stroke: "red",
-    fill: "rgba(255, 50, 50, 0.6)",
   },
   canvas: {
     fillStyle: "#000",

@@ -181,8 +181,7 @@ export default class Convolution extends React.Component {
     });
     // Rescale output chart for new result values
     this.outputChartXDomain = [this.result[0][0], this.result[this.result.length - 1][0]];
-    this.outputChartYDomain = (resultMaxY[0] !== 0 && resultMaxY[1] !== 0) ? resultMaxY : [-1, 1];
-
+    this.outputChartYDomain = (resultMaxY[0] !== resultMaxY[1]) ? resultMaxY : [-1, 1];
     this.outputChart.rescale({yDomain: this.outputChartYDomain, xDomain: this.outputChartXDomain});
   }
 
@@ -371,7 +370,7 @@ export default class Convolution extends React.Component {
                                                    width: this.stepChartWrapper.offsetWidth - 95,
                                                    offsetX: (this.stepChartWrapper.offsetWidth - 95) / 2
                                                  },
-                                                 element: "rect"
+                                                 element: "bar"
                                                }
                                              }}/>
             }
@@ -444,7 +443,7 @@ export default class Convolution extends React.Component {
                                                      width: this.outputChartWrapper.offsetWidth / 21 - 10,
                                                      offsetX: (this.outputChartWrapper.offsetWidth / 21 - 10) / 2
                                                    },
-                                                   element: "rect"
+                                                   element: "bar"
                                                  }
                                                }}/>
             }
@@ -498,7 +497,7 @@ export default class Convolution extends React.Component {
                                                         width: this.draggableChartWrapper.offsetWidth / 21 - 10,
                                                         offsetX: (this.draggableChartWrapper.offsetWidth / 21 - 10) / 2
                                                       },
-                                                      element: "rect"
+                                                      element: "bar"
                                                     },
                                                     kernelSignalSampled: {
                                                       data: this.kernelSignalSampled.values(),
@@ -507,7 +506,7 @@ export default class Convolution extends React.Component {
                                                         width: this.draggableChartWrapper.offsetWidth / 21 - 10,
                                                         offsetX: (this.draggableChartWrapper.offsetWidth / 21 - 10) / 2
                                                       },
-                                                      element: "rect"
+                                                      element: "bar"
                                                     },
                                                   }}/>
             }

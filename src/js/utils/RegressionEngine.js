@@ -13,8 +13,10 @@ export default class RegressionEngine {
    * @return Array of arrays [[x1, y1], [x2, y2],....]
    */
   static getLineApproximation(inputValues) {
-    // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
+    if (!coef) {
+      return false;
+    }
     const ret = [];
 
     inputValues.map((point) => ret.push([point[0], coef.line[0] * point[0] + coef.line[1]]));
@@ -28,8 +30,10 @@ export default class RegressionEngine {
    * @return Array of arrays [[x1, y1], [x2, y2],....]
    */
   static getParabolaApproximation(inputValues) {
-    // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
+    if (!coef) {
+      return false;
+    }
     const ret = [];
 
     inputValues.map(point =>
@@ -44,8 +48,10 @@ export default class RegressionEngine {
    * @return Array of arrays [[x1, y1], [x2, y2],....]
    */
   static getExponentialApproximation(inputValues) {
-    // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
+    if (!coef) {
+      return false;
+    }
     const ret = [];
 
     inputValues.map(point =>
@@ -61,6 +67,9 @@ export default class RegressionEngine {
    */
   static getLineEquation(inputValues, decimalPlaces = 4) {
     const coef = this.getCoefficients(inputValues);
+    if (!coef) {
+      return false;
+    }
 
     return `y = ${coef.line[0].toFixed(decimalPlaces)}x + ${coef.line[1].toFixed(decimalPlaces)}`;
   }
@@ -73,6 +82,9 @@ export default class RegressionEngine {
    */
   static getParabolaEquation(inputValues, decimalPlaces = 4) {
     const coef = this.getCoefficients(inputValues);
+    if (!coef) {
+      return false;
+    }
 
     return `y = ${coef.parabola[0].toFixed(decimalPlaces)} + ${coef.parabola[1].toFixed(decimalPlaces)}x +
      ${coef.parabola[2].toFixed(decimalPlaces)}x^2`;
@@ -86,6 +98,9 @@ export default class RegressionEngine {
    */
   static getExponentialEquation(inputValues, decimalPlaces = 4) {
     const coef = this.getCoefficients(inputValues);
+    if (!coef) {
+      return false;
+    }
 
     return `y = e^${coef.exponential[0].toFixed(decimalPlaces)} * e^${coef.exponential[1].toFixed(decimalPlaces)}x`;
   }
@@ -97,8 +112,10 @@ export default class RegressionEngine {
    * @return float squares areas sum
    **/
   static getLineLeastSquares(inputValues) {
-    // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
+    if (!coef) {
+      return false;
+    }
     let r2 = 0;
 
     inputValues.map(point => r2 += Math.pow(point[1] - (coef.line[1] + coef.line[0] * point[0]), 2));
@@ -112,8 +129,10 @@ export default class RegressionEngine {
    * @return float squares areas sum
    **/
   static getParabolaLeastSquares(inputValues) {
-    // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
+    if (!coef) {
+      return false;
+    }
     let r2 = 0;
 
     inputValues.map(point =>
@@ -129,19 +148,21 @@ export default class RegressionEngine {
    * @return float squares areas sum
    **/
   static getExponentialLeastSquares(inputValues) {
-    // Method getCoefficient ensures validation
     const coef = this.getCoefficients(inputValues);
+    if (!coef) {
+      return false;
+    }
     let r2 = 0;
 
     inputValues.map(point =>
-      r2 += point[1] * Math.pow(Math.log(point[1]) - coef.exponential[0] - coef.exponential[1] * point[0], 2));
+      r2 += point[1] * (Math.pow(Math.log(point[1]) - coef.exponential[0] - coef.exponential[1] * point[0], 2)));
     return r2;
   }
 
   /**
    * Calculates coefficients for approximations and returns them as object with key named like approximation and
    * value as array of coefficients
-   * @param inputValues [[x1, y1],...]
+   * @param inputValues array of arrays [[x1, y1],...]
    * @return {*} Object with keys line: array, parabola: array, exponential: array
    */
   static getCoefficients(inputValues) {
@@ -166,15 +187,15 @@ export default class RegressionEngine {
         return false;
       }
 
-      xi += point[0];
-      xiPow += Math.pow(point[0], 2);
-      xiPow_3 += Math.pow(point[0], 3);
-      xiPow_4 += Math.pow(point[0], 4);
-      yi += point[1];
-      xiyi += point[1] * point[0];
-      xiPowYi += point[1] * Math.pow(point[0], 2);
-      xi_lnyi += point[0] * Math.log(point[1]);
-      lnyi += Math.log(point[1]);
+      xi += Number(point[0]);
+      xiPow += Math.pow(Number(point[0]), 2);
+      xiPow_3 += Math.pow(Number(point[0]), 3);
+      xiPow_4 += Math.pow(Number(point[0]), 4);
+      yi += Number(point[1]);
+      xiyi += Number(point[1]) * Number(point[0]);
+      xiPowYi += Number(point[1]) * Math.pow(Number(point[0]), 2);
+      xi_lnyi += Number(point[0]) * Math.log(Number(point[1]));
+      lnyi += Math.log(Number(point[1]));
     });
 
     // Get coefficients

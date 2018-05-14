@@ -7,7 +7,18 @@
   flex-direction: column;
 }
 
-.navbar{
+.chartRow {
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.chartWrapper {
+  padding: 0;
+  border: 1px solid #292b2c;
+  border-bottom: none;
+}
+
+.navbar {
   border-bottom: 1px solid $body-border;
-  height: $navbar-height;
+  min-height: 28px;
 }

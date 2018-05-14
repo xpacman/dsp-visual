@@ -400,7 +400,7 @@ export default class Correlation extends React.Component {
                                                     ...config.correlationInputChart.rect,
                                                     width: 1
                                                   },
-                                                  element: "rect"
+                                                  element: "bar"
                                                 }
                                               }}
                                               onContentMousedrag={(chart) => {

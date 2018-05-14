@@ -285,7 +285,7 @@ export default class Interpolation extends React.Component {
                                                visible: display.originalSampled,
                                                width: 1
                                              },
-                                             element: "rect"
+                                             element: "bar"
                                            },
                                            zeroOrderHold: {
                                              data: InterpolationEngine.getZeroOrderHoldInterpolation(this.originalSampled.values()),

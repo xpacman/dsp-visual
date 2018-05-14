@@ -5,7 +5,7 @@
 import React from "react";
 import PropTypes from 'prop-types';
 import * as config from "../../config";
-import {Rect, Line, Group} from "react-konva";
+import {Rect, Line, Group, Circle} from "react-konva";
 import Konva from "konva";
 
 export default class Dataset extends React.Component {
@@ -17,8 +17,8 @@ export default class Dataset extends React.Component {
     config: PropTypes.object,
     // Y Position of the rect group
     y: PropTypes.number,
-    // Konva element to display dataset (line: will set data as points to line, rect: will render rect for each x,y value)
-    element: PropTypes.oneOf(["line", "rect"])
+    // Konva element to display dataset (line: will set data as points to line, bar: will render rect for each x,y value)
+    element: PropTypes.oneOf(["line", "bar", "cross"])
   };
 
   static defaultProps = {
@@ -37,7 +37,8 @@ export default class Dataset extends React.Component {
 
     // Refs will be stored here
     this.elements = {
-      rect: null, // Group of rects
+      bar: null, // Group of bars
+      cross: null, // Group of crosses (group of groups)
       line: null
     };
   }
@@ -56,8 +57,8 @@ export default class Dataset extends React.Component {
   }
 
   /**
-   * Gets or sets current data
-   * @param data array [x0, y0, x1, y1...]
+   * Gets or sets current data (props)
+   * @param data array of objects [{...props},...]
    * @return {*}
    */
   data(data = null) {
@@ -70,8 +71,8 @@ export default class Dataset extends React.Component {
       this.elements.line.attrs.points = data;
     }
 
-    else if (this.props.element === "rect" && this.elements.rect) {
-      const rects = this.elements.rect.children;
+    else if (this.props.element === "bar" && this.elements.bar) {
+      const bars = this.elements.bar.children;
       let n = 0,
         x = 0,
         y = this.props.y,
@@ -83,8 +84,8 @@ export default class Dataset extends React.Component {
           height = -(y - data[i + 1]) + 1;
 
           // Child doesnt exist -> add
-          if (!rects[n]) {
-            this.elements.rect.add(new Konva.Rect({
+          if (!bars[n]) {
+            this.elements.bar.add(new Konva.Rect({
               height: height,
               x: x,
               y: y,
@@ -93,16 +94,20 @@ export default class Dataset extends React.Component {
           }
           // Child exist -> update values
           else {
-            rects[n].x(x);
-            rects[n].y(y);
-            rects[n].setAttrs(this._config);
-            rects[n].attrs.height = height;
+            bars[n].x(x);
+            bars[n].y(y);
+            bars[n].setAttrs(this._config);
+            bars[n].attrs.height = height;
           }
           n++;
         }
       });
       // Remove old data
-      rects.splice(n);
+      bars.splice(n);
+    }
+
+    else if (this.props.element === "cross" && this.elements.cross) {
+      // Todo: update
     }
 
     return this._data = data;
@@ -113,9 +118,10 @@ export default class Dataset extends React.Component {
       {_data, _config} = this;
 
     switch (element) {
-      case "rect":
+
+      case "bar":
         return (
-          <Group ref={(grp) => this.elements.rect = grp}>
+          <Group ref={(grp) => this.elements.bar = grp}>
             {
               _data.map((value, i) => {
 
@@ -130,9 +136,27 @@ export default class Dataset extends React.Component {
         );
         break;
 
+      case "cross":
+        return (
+          <Group ref={(grp) => this.elements.cross = grp}>
+            {
+              _data.map((value, i) => {
+                if (i % 2 === 0) {
+                  return (
+                    <Group key={i} x={value} y={_data[i + 1]}>
+                      <Line points={[-10, 0, 10, 0]} {..._config.cross}/>
+                      <Line points={[0, -10, 0, 10]} {..._config.cross}/>
+                      <Circle x={0} y={0} {..._config.dot} />
+                    </Group>)
+                }
+              })
+            }
+          </Group>
+        );
+        break;
+
       default:
-        return (<Line ref={(line) => this.elements.line = line} {..._config}
-                      points={_data}/>)
+        return (<Line ref={(line) => this.elements.line = line} points={_data} {..._config}/>)
     }
   }
 }
