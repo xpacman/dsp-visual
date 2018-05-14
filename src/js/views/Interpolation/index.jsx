@@ -196,7 +196,7 @@ export default class Interpolation extends React.Component {
               </DropdownToggle>
               <DropdownMenu className="px-3">
                 <FormGroup>
-                  <Label for="exampleText">Vzorkovací frekvence [Hz]</Label>
+                  <Label for="exampleText">Vzorkovací frekvence [kHz]</Label>
                   <Input placeholder=""
                          type="number"
                          innerRef={(input) => this.samplingRate = input}
@@ -212,8 +212,8 @@ export default class Interpolation extends React.Component {
             </UncontrolledDropdown>
 
             <NavItem className="d-inline-flex align-items-center px-3">
-              <span className="pr-3">f<sub>vz</sub> = {samplingRate.toFixed(3)}Hz</span>
-              <span className="pr-3">T<sub>vz</sub> = {samplingPeriod.toFixed(3)}s</span>
+              <span className="pr-3">f<sub>vz</sub> = {samplingRate.toFixed(3)}kHz</span>
+              <span className="pr-3">T<sub>vz</sub> = {samplingPeriod.toFixed(3)}ms</span>
             </NavItem>
 
             <FormGroup check
@@ -266,8 +266,9 @@ export default class Interpolation extends React.Component {
                                          wrapper={this.chartWrapper}
                                          width={this.chartWrapper.offsetWidth}
                                          height={this.chartWrapper.offsetHeight}
-                                         xAxisLabel={"t"}
+                                         xAxisLabel={"t [ms]"}
                                          yAxisLabel={"x(t)"}
+                                         labelOffsets={{x: [20, 0], y: [0, 0]}}
                                          xDomain={this.timeDomain}
                                          yDomain={this.yDomain}
                                          datasets={{

@@ -10,7 +10,7 @@ import {Rect, Text} from "react-konva";
 import CorrelationEngine from "../../utils/CorrelationEngine";
 import * as Presets from "../../partials/SignalPresets";
 import {Chart, Scroller} from "../../components";
-import {max, min} from "d3-array";
+import {max, min, extent} from "d3-array";
 import Signal from "../../partials/Signal";
 import {findIndexOfNearest} from '../../utils/ArrayUtils';
 import config from "../../config";
@@ -168,7 +168,7 @@ export default class Correlation extends React.Component {
       this.lag = lag;
     }
     // Rescale charts to fit amplitude
-    this.outputAmplitude = this.receivedSignal.getYDomain();
+    this.outputAmplitude = extent(this.receivedSignal.values().map(point => point[1]));
     if (this.receivedChart && this.outputChart) {
       this.receivedChart.rescale({yDomain: this.outputAmplitude});
       this.outputChart.rescale({yDomain: this.outputAmplitude});

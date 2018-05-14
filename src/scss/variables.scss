@@ -1,4 +1,10 @@
-@import "~bootstrap/scss/functions";
+/**
+Override bootstrap variables or define custom variables here
+ */
+
+$body-bg: black;
+$body-color: white;
+$body-border: lighten($body-bg, 20);
 
 // region RESPONSIVENES REMOVAL
 
@@ -47,13 +53,6 @@ $font-family-serif: Georgia, "Times New Roman", Times, serif;
 $font-family-monospace: Menlo, Monaco, Consolas, "Courier New", monospace;
 $font-family-base: $font-family-sans-serif;
 
-
-@import '../../node_modules/bootstrap/scss/variables';
-
-$body-bg: black;
-$body-color: #A5ABB1;
-$body-border: lighten($body-bg, 20);
-
 //
 // Fonts
 //
@@ -71,13 +70,6 @@ $sideMenuItemColor: #868e96;
 $sideMenuItemHover: #adb5bd;
 $sideMenuItemActiveColor: white;
 
-// Options bar
-$optionsBarColor: $gray-light;
-$optionsBarHoverColor: $gray-lighter;
-$optionsBarBorderColor: $gray;
-$optionsBarItemPadding: 10px;
-$optionsBarItemColor: $gray-light;
-$optionsBarDropdownMenuBg: $body-bg;
-$optionsBarDropdownMenuBorderColor: $gray-dark;
-$inputBg: #0c0c0c;
-
+@import "../../node_modules/bootstrap/scss/functions";
+@import "../../node_modules/bootstrap/scss/variables";
+@import "../../node_modules/bootstrap/scss/mixins";

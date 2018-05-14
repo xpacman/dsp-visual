@@ -1,2 +1,5 @@
-@import '~variables';
+// Customize Bootstrap variables that get imported before the original Bootstrap variables.
+// Thus original Bootstrap variables can depend on values from here.
 
+$body-bg: black;
+$body-color: white;

@@ -1,12 +1,5 @@
-@import "~variables";
+// Customize variables
 
-body {
-  background: $body-bg;
-  color: white;
-}
-
-.main-container {
-  border: 1px solid $border-color;
-  padding: 20px;
-  max-width: 600px;
-}
+// This gets loaded after bootstrap/variables is loaded, so you can refer to
+// bootstrap variables configured by bootstrap. For example, the _variables.scss contains:
+// $btn-primary-bg: $brand-primary !default;
