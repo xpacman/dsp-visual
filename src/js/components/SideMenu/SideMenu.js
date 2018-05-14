@@ -6,7 +6,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import {Nav, NavItem} from "reactstrap";
 import routes from "../../routes";
-import {Link} from "react-router-dom";
+import {Link, NavLink} from "react-router-dom";
 import {connect} from "react-redux";
 import * as actions from "../../actions/actions";
 import styles from "./SideMenu.scss"; // To include in bundle
@@ -38,16 +38,18 @@ export default class SideMenu extends React.Component {
         <NavItem className={`${styles.sideMenu__item}`}>
           {!collapsed ?
             <h2 className={`${styles.sideMenu__item__link} ${styles.brand_logo}`}>GraphiX</h2> :
-            <h2 className={`${styles.sideMenu__item__link} ${styles.brand_logo}`}>VUT FEKT</h2>
+            <h2 className={`${styles.sideMenu__item__link} ${styles.brand_logo}`}>
+              <Link id="brand-link" to={"/"}>VUT FEKT</Link>
+            </h2>
           }
         </NavItem>
         {
           routes.map((route, i) => {
             return (
               <NavItem key={i}
-                       className={`${styles.sideMenu__item} ${route.slug === activePath ? styles["sideMenu__item--active"] : ""}`}>
-                <Link id={`sideMenu__item-${i}`} className={`${styles.sideMenu__item__link }`}
-                      to={route.slug}>{route.short}</Link>
+                       className={`${styles.sideMenu__item}`}>
+                <NavLink id={`sideMenu__item-${i}`} className={`${styles.sideMenu__item__link }`}
+                         activeClassName='is-active' to={route.slug}>{route.short}</NavLink>
               </NavItem>
             );
           })
