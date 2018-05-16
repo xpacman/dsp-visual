@@ -77,6 +77,7 @@
     "d3-array": "^1.2.1",
     "d3-scale": "^2.0.0",
     "decimal.js-light": "^2.3.1",
+    "imports-loader": "^0.8.0",
     "jquery": "^1.12.4",
     "konva": "^1.7.6",
     "linear-solve": "^1.2.1",

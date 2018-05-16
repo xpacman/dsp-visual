@@ -3,8 +3,8 @@
  */
 
 const Dotenv = require('dotenv-webpack');
-const { resolve } = require('path');
-
+const {resolve} = require('path');
+const autoprefixer = require('autoprefixer');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
@@ -19,7 +19,7 @@ module.exports = {
 
   entry: [
     './',
-    './scss/app'
+    'bootstrap-loader'
   ],
 
   output: {
@@ -37,7 +37,8 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        use: ['style-loader', 'css-loader'] },
+        use: ['style-loader', 'css-loader']
+      },
       {
         test: /\.scss$/,
         exclude: /node_modules/,
@@ -63,11 +64,12 @@ module.exports = {
           ],
         }),
       },
-      { test: /\.(png|jpg|gif)$/, use: 'url-loader?limit=15000&name=[hash:base64:5].[ext]' },
-      { test: /\.eot(\?v=\d+.\d+.\d+)?$/, use: 'file-loader' },
-      { test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/, use: 'url-loader?limit=10000&mimetype=application/font-woff' },
-      { test: /\.[ot]tf(\?v=\d+.\d+.\d+)?$/, use: 'url-loader?limit=10000&mimetype=application/octet-stream' },
-      { test: /\.svg(\?v=\d+\.\d+\.\d+)?$/, use: 'url-loader?limit=10000&mimetype=image/svg+xml' }
+      {test: /\.(png|jpg|gif)$/, use: 'url-loader?limit=15000&name=[hash:base64:5].[ext]'},
+      {test: /\.eot(\?v=\d+.\d+.\d+)?$/, use: 'file-loader'},
+      {test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/, use: 'url-loader?limit=10000&mimetype=application/font-woff'},
+      {test: /\.[ot]tf(\?v=\d+.\d+.\d+)?$/, use: 'url-loader?limit=10000&mimetype=application/octet-stream'},
+      {test: /\.svg(\?v=\d+\.\d+\.\d+)?$/, use: 'url-loader?limit=10000&mimetype=image/svg+xml'},
+      {test: /bootstrap\/dist\/js\/umd\//, loader: 'imports-loader?jQuery=jquery,$=jquery'},
     ]
   },
 
@@ -115,7 +117,11 @@ module.exports = {
       },
       comments: false,
     }),
-    new ExtractTextPlugin({ filename: 'app-[hash].css', disable: false, allChunks: true }),
+    new ExtractTextPlugin({filename: 'app-[hash].css', disable: false, allChunks: true}),
+
+    new webpack.LoaderOptionsPlugin({
+      postcss: [autoprefixer],
+    }),
 
     // GZIP compression
     new CompressionPlugin({
