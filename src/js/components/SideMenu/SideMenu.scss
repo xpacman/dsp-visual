@@ -26,14 +26,6 @@
   overflow: hidden;
   text-align: center;
   border-bottom: 1px solid #333;
-
-  & .active, &:focus, &:active {
-    color: $sideMenuItemActiveColor;
-  }
-}
-
-.sideMenu__item--active > a {
-  color: lighten($sideMenuItemActiveColor, 10);
 }
 
 .sideMenu__item__link {
@@ -47,19 +39,8 @@
     color: $sideMenuItemHover;
     text-decoration: none;
   }
-
-  &:focus, &:active {
-    color: $sideMenuItemColor;
-  }
 }
 
-.sideMenu__item--menuToggleArrow {
-  text-align: center;
-  color: white;
-  background: black;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  border-bottom: none;
+.isActive {
+  color: $sideMenuItemActiveColor !important;
 }

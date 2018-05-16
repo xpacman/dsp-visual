@@ -35,17 +35,18 @@ export default class Regression extends React.Component {
     this.inputSignal = new Signal([[0, 1], [2, 3], [5, 4], [6, 5], [8, 9], [9, 3]]);
 
     // Refs
-    this.chartWrapper = null; // Chart wrapper ref
+    this.wrappers = {}; // Object of wrappers (element refs) for charts
+    this.dims = {}; // Object of dimensions for charts
     this.chart = null; // Chart ref
   }
 
   componentDidMount() {
     setTimeout(() => {
-      // Delayed mount of konva chart
-      this.forceUpdate();
+      // Delayed mount of konva components
+      this.rescaleDimensions();
       // Listen for window resizes
-      window.addEventListener("resize", () => this.forceUpdate());
-    }, 1000);
+      window.addEventListener("resize", () => this.rescaleDimensions());
+    }, 1200);
   }
 
   componentWillUnmount() {
@@ -54,6 +55,28 @@ export default class Regression extends React.Component {
 
   toggleDropdown(dropdown) {
     this.setState({dropdowns: {...this.state.dropdowns, [dropdown]: !this.state.dropdowns[dropdown]}})
+  }
+
+  /**
+   * Will force update state and recalculates dimensions for canvas elements
+   */
+  rescaleDimensions() {
+    Object.keys(this.wrappers).forEach(key => {
+      this.dims[key] = this.getElementDimensions(this.wrappers[key]);
+    });
+    this.forceUpdate();
+  }
+
+  /**
+   * Will return element array containing element width and height
+   * @param element element reference
+   * @return {[width, height]|array}
+   */
+  getElementDimensions(element) {
+    if (element) {
+      return [element.offsetWidth, element.offsetHeight];
+    }
+    return [undefined, undefined];
   }
 
   selectApproximation(approximation) {
@@ -161,27 +184,6 @@ export default class Regression extends React.Component {
         break;
     }
 
-    /*
-     <Layer ref={(layer) => this.pointsLayer = layer}>
-     {
-
-     {displayLeastSquares &&
-     <Rect x={xShift} y={yShift}
-     fillLinearGradientStartPoint={{x: 0, y: 0}}
-     fillLinearGradientEndPoint={{x: Math.abs(leastSquareSize), y: Math.abs(leastSquareSize)}}
-     {...config.leastSquares}
-     width={Math.abs(leastSquareSize)}
-     height={Math.abs(leastSquareSize)}/>
-     }
-     </Group>
-     )
-     })
-     }
-
-     <Line {...approxLineProps} points={this.getPoints(approxLineProps.points)}/>
-     </Layer>
-     */
-
     return (
       <div className={styles.container}>
         <Navbar dark className={styles.navbar}>
@@ -235,37 +237,37 @@ export default class Regression extends React.Component {
         </Navbar>
 
         <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="regression-chart-wrapper" ref={(elem) => this.chartWrapper = elem}
+          <div id="regression-chart-wrapper" ref={(elem) => this.wrappers.chart = elem}
                className={`col-12 ${styles.chartWrapper}`}>
-            {this.chartWrapper && <Chart ref={(chart) => this.chart = chart}
-                                         wrapper={this.chartWrapper}
-                                         width={this.chartWrapper.offsetWidth}
-                                         height={this.chartWrapper.offsetHeight}
-                                         xAxisLabel={"x"}
-                                         yAxisLabel={"y"}
-                                         xDomain={this.timeDomain}
-                                         yDomain={this.yDomain}
-                                         datasets={{
-                                           inputSignal: {
-                                             data: this.inputSignal.values(),
-                                             config: {
-                                               cross: config.pointCross,
-                                               dot: config.pointCircle
+            {this.wrappers.chart && <Chart ref={(chart) => this.chart = chart}
+                                           wrapper={this.wrappers.chart}
+                                           width={this.dims.chart ? this.dims.chart[0] : 0}
+                                           height={this.dims.chart ? this.dims.chart[1] : 0}
+                                           xAxisLabel={"x"}
+                                           yAxisLabel={"y"}
+                                           xDomain={this.timeDomain}
+                                           yDomain={this.yDomain}
+                                           datasets={{
+                                             inputSignal: {
+                                               data: this.inputSignal.values(),
+                                               config: {
+                                                 cross: config.pointCross,
+                                                 dot: config.pointCircle
+                                               },
+                                               element: "cross"
                                              },
-                                             element: "cross"
-                                           },
-                                           approximation: {
-                                             data: approxSignal.values(),
-                                             config: {
-                                               ...config.regressionChart.line,
-                                             },
-                                             element: "line"
-                                           }
-                                         }}
-                                         onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputSignal")}
-                                         onContentMousedown={(chart) => {
-                                           this.onDrawableChartClick("inputSignal", chart);
-                                         }}>
+                                             approximation: {
+                                               data: approxSignal.values(),
+                                               config: {
+                                                 ...config.regressionChart.line,
+                                               },
+                                               element: "line"
+                                             }
+                                           }}
+                                           onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputSignal")}
+                                           onContentMousedown={(chart) => {
+                                             this.onDrawableChartClick("inputSignal", chart);
+                                           }}>
               {(chart) =>
               displayLeastSquares && leastSquares.map((square, i) => {
                 return (

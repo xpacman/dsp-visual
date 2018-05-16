@@ -53,9 +53,8 @@ export default class Correlation extends React.Component {
     // Refs
     this.samplingRate = null; // Sampling frequency input ref
     this.noisePerformance = null; // Noise performance input ref
-    this.inputChartWrapper = null; // Input Chart wrapper ref
-    this.receivedChartWrapper = null; // Step Chart wrapper ref
-    this.outputChartWrapper = null; // Draggable Chart wrapper ref
+    this.wrappers = {}; // Object of wrappers (element refs) for charts
+    this.dims = {}; // Object of dimensions for charts
     this.outputChart = null; // Cross correlation function (output) Chart
     this.inputChart = null; // Input Chart
     this.receivedChart = null; // Step Chart
@@ -64,20 +63,16 @@ export default class Correlation extends React.Component {
   }
 
   componentDidMount() {
+    // Delayed mount of konva components
     setTimeout(() => {
-      // Delayed mount of konva components
-      this.forceUpdate();
+      this.rescaleDimensions();
       // Listen for window resizes
-      window.addEventListener("resize", () => this.forceUpdate());
-    }, 1000);
+      window.addEventListener("resize", () => this.rescaleDimensions());
+    }, 1200);
   }
 
   componentWillUnmount() {
     window.removeEventListener("resize", () => this.forceUpdate());
-  }
-
-  toggleDropdown(dropdown) {
-    this.setState({dropdowns: {...this.state.dropdowns, [dropdown]: !this.state.dropdowns[dropdown]}})
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -93,6 +88,32 @@ export default class Correlation extends React.Component {
       // We want default offset here
       this.outputChart.datasetPoints("draggableSignal", this.draggableSignal.values(null, true));
     }
+  }
+
+  toggleDropdown(dropdown) {
+    this.setState({dropdowns: {...this.state.dropdowns, [dropdown]: !this.state.dropdowns[dropdown]}})
+  }
+
+  /**
+   * Will force update state and recalculates dimensions for canvas elements
+   */
+  rescaleDimensions() {
+    Object.keys(this.wrappers).forEach(key => {
+      this.dims[key] = this.getElementDimensions(this.wrappers[key]);
+    });
+    this.forceUpdate();
+  }
+
+  /**
+   * Will return element array containing element width and height
+   * @param element element reference
+   * @return {[width, height]|array}
+   */
+  getElementDimensions(element) {
+    if (element) {
+      return [element.offsetWidth, element.offsetHeight];
+    }
+    return [undefined, undefined];
   }
 
   /**
@@ -372,142 +393,143 @@ export default class Correlation extends React.Component {
         </Navbar>
 
         <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="input-chart-wrapper" ref={(elem) => this.inputChartWrapper = elem}
+          <div id="input-chart-wrapper" ref={(elem) => this.wrappers.inputChart = elem}
                className={`col-12 ${styles.chartWrapper}`}>
-            {this.inputChartWrapper && <Chart ref={(chart) => this.inputChart = chart}
-                                              wrapper={this.inputChartWrapper}
-                                              width={this.inputChartWrapper.offsetWidth}
-                                              height={this.inputChartWrapper.offsetHeight}
-                                              xAxisLabel={"t [ms]"}
-                                              labelOffsets={{x: [20, 0], y: [0, 0]}}
-                                              labels={{
-                                                x: 20,
-                                                y: 0,
-                                                width: 50,
-                                                height: 20,
-                                                content: <Text text="Vyslaný signál x(t)" {...config.chartLabelText} />
-                                              }}
-                                              xDomain={this.timeDomain}
-                                              yDomain={[-1, 1]}
-                                              datasets={{
-                                                inputSignal: {
-                                                  data: this.inputSignal.values(),
-                                                  config: config.correlationInputChart.line
-                                                },
-                                                inputSignalSampled: {
-                                                  data: this.inputSignalSampled.values(),
-                                                  config: {
-                                                    ...config.correlationInputChart.rect,
-                                                    width: 1
+            {this.wrappers.inputChart && <Chart ref={(chart) => this.inputChart = chart}
+                                                wrapper={this.wrappers.inputChart}
+                                                width={this.dims.inputChart ? this.dims.inputChart[0] : 0}
+                                                height={this.dims.inputChart ? this.dims.inputChart[1] : 0}
+                                                xAxisLabel={"t [ms]"}
+                                                labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                labels={{
+                                                  x: 20,
+                                                  y: 0,
+                                                  width: 50,
+                                                  height: 20,
+                                                  content: <Text
+                                                    text="Vyslaný signál x(t)" {...config.chartLabelText} />
+                                                }}
+                                                xDomain={this.timeDomain}
+                                                yDomain={[-1, 1]}
+                                                datasets={{
+                                                  inputSignal: {
+                                                    data: this.inputSignal.values(),
+                                                    config: config.correlationInputChart.line
                                                   },
-                                                  element: "bar"
-                                                }
-                                              }}
-                                              onContentMousedrag={(chart) => {
-                                                this.onChartDraw("inputSignal", chart);
-                                                chart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values());
-                                              }}
-                                              onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputSignal")}
-                                              onContentMousedown={(chart) => {
-                                                this.onDrawableChartClick("inputSignal", chart);
-                                                chart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values());
-                                              }}/>
+                                                  inputSignalSampled: {
+                                                    data: this.inputSignalSampled.values(),
+                                                    config: {
+                                                      ...config.correlationInputChart.rect,
+                                                      width: 1
+                                                    },
+                                                    element: "bar"
+                                                  }
+                                                }}
+                                                onContentMousedrag={(chart) => {
+                                                  this.onChartDraw("inputSignal", chart);
+                                                  chart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values());
+                                                }}
+                                                onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputSignal")}
+                                                onContentMousedown={(chart) => {
+                                                  this.onDrawableChartClick("inputSignal", chart);
+                                                  chart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values());
+                                                }}/>
             }
           </div>
         </div>
 
         <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="received-chart-wrapper" ref={(elem) => this.receivedChartWrapper = elem}
+          <div id="received-chart-wrapper" ref={(elem) => this.wrappers.receivedChart = elem}
                className={`col-12 ${styles.chartWrapper}`}>
-            {this.receivedChartWrapper && <Chart ref={(chart) => this.receivedChart = chart}
-                                                 wrapper={this.receivedChartWrapper}
-                                                 width={this.receivedChartWrapper.offsetWidth}
-                                                 height={this.receivedChartWrapper.offsetHeight}
-                                                 xAxisLabel={"t [ms]"}
+            {this.wrappers.receivedChart && <Chart ref={(chart) => this.receivedChart = chart}
+                                                   wrapper={this.wrappers.receivedChart}
+                                                   width={this.dims.receivedChart ? this.dims.receivedChart[0] : 0}
+                                                   height={this.dims.receivedChart ? this.dims.receivedChart[1] : 0}
+                                                   xAxisLabel={"t [ms]"}
+                                                   clickSafe={true}
+                                                   xTicksCount={10}
+                                                   xStep={0.01}
+                                                   labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                   labels={{
+                                                     x: 20,
+                                                     y: 0,
+                                                     width: 50,
+                                                     height: 20,
+                                                     content: <Text
+                                                       text="Přijatý signál y(t)" {...config.chartLabelText} />
+                                                   }}
+                                                   xDomain={this.draggableTimeDomain}
+                                                   yDomain={this.outputAmplitude}
+                                                   datasets={{
+                                                     receivedSignal: {
+                                                       data: this.receivedSignal.values(),
+                                                       config: config.correlationReceivedChart.line
+                                                     }
+                                                   }}/>
+            }
+          </div>
+        </div>
+
+        <div className={`row h-100 ${styles.chartRow}`}>
+          <div id="output-chart-wrapper" ref={(elem) => this.wrappers.outputChart = elem}
+               className={`col-12 ${styles.chartWrapper}`}>
+            {this.wrappers.outputChart && <Chart ref={(chart) => this.outputChart = chart}
+                                                 wrapper={this.wrappers.outputChart}
+                                                 width={this.dims.outputChart ? this.dims.outputChart[0] : 0}
+                                                 height={this.dims.outputChart ? this.dims.outputChart[1] : 0}
+                                                 xAxisLabel={"τ [ms]"}
                                                  clickSafe={true}
-                                                 xTicksCount={10}
-                                                 xStep={0.01}
                                                  labelOffsets={{x: [20, 0], y: [0, 0]}}
-                                                 labels={{
+                                                 labels={[{
                                                    x: 20,
                                                    y: 0,
                                                    width: 50,
                                                    height: 20,
                                                    content: <Text
-                                                     text="Přijatý signál y(t)" {...config.chartLabelText} />
-                                                 }}
+                                                     text="Křížová korelační funkce Rxy(τ)" {...config.chartLabelText} />
+                                                 }, {
+                                                   x: 200,
+                                                   y: 0,
+                                                   width: 50,
+                                                   height: 20,
+                                                   content: <Text ref={(text => this.outputChartOffsetLabel = text)}
+                                                                  text={`Zpoždění τ = ${Number(this.draggableOffset).toFixed(2)}[ms]`} {...config.chartLabelText} />
+                                                 },
+                                                   {
+                                                     x: 350,
+                                                     y: 0,
+                                                     width: 50,
+                                                     height: 20,
+                                                     content: <Text
+                                                       ref={(text => this.outputChartCorrelationResultLabel = text)}
+                                                       text={`Rxy(${Number(this.draggableOffset).toFixed(2)}) = ${this.getCorrelationResult(this.draggableOffset).toFixed(2)}`} {...config.chartLabelText} />
+                                                   }]}
                                                  xDomain={this.draggableTimeDomain}
                                                  yDomain={this.outputAmplitude}
+                                                 xStep={1}
                                                  datasets={{
                                                    receivedSignal: {
                                                      data: this.receivedSignal.values(),
-                                                     config: config.correlationReceivedChart.line
+                                                     config: config.correlationOutputChart.receivedSignal.line
+                                                   },
+                                                   draggableSignal: {
+                                                     data: this.draggableSignal.values(null, true),
+                                                     config: config.correlationOutputChart.inputSignal.line
                                                    }
                                                  }}/>
             }
           </div>
         </div>
 
-        <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="output-chart-wrapper" ref={(elem) => this.outputChartWrapper = elem}
-               className={`col-12 ${styles.chartWrapper}`}>
-            {this.outputChartWrapper && <Chart ref={(chart) => this.outputChart = chart}
-                                               wrapper={this.outputChartWrapper}
-                                               width={this.outputChartWrapper.offsetWidth}
-                                               height={this.outputChartWrapper.offsetHeight}
-                                               xAxisLabel={"τ [ms]"}
-                                               clickSafe={true}
-                                               labelOffsets={{x: [20, 0], y: [0, 0]}}
-                                               labels={[{
-                                                 x: 20,
-                                                 y: 0,
-                                                 width: 50,
-                                                 height: 20,
-                                                 content: <Text
-                                                   text="Křížová korelační funkce Rxy(τ)" {...config.chartLabelText} />
-                                               }, {
-                                                 x: 200,
-                                                 y: 0,
-                                                 width: 50,
-                                                 height: 20,
-                                                 content: <Text ref={(text => this.outputChartOffsetLabel = text)}
-                                                                text={`Zpoždění τ = ${Number(this.draggableOffset).toFixed(2)}[ms]`} {...config.chartLabelText} />
-                                               },
-                                                 {
-                                                   x: 350,
-                                                   y: 0,
-                                                   width: 50,
-                                                   height: 20,
-                                                   content: <Text
-                                                     ref={(text => this.outputChartCorrelationResultLabel = text)}
-                                                     text={`Rxy(${Number(this.draggableOffset).toFixed(2)}) = ${this.getCorrelationResult(this.draggableOffset).toFixed(2)}`} {...config.chartLabelText} />
-                                                 }]}
-                                               xDomain={this.draggableTimeDomain}
-                                               yDomain={this.outputAmplitude}
-                                               xStep={1}
-                                               datasets={{
-                                                 receivedSignal: {
-                                                   data: this.receivedSignal.values(),
-                                                   config: config.correlationOutputChart.receivedSignal.line
-                                                 },
-                                                 draggableSignal: {
-                                                   data: this.draggableSignal.values(null, true),
-                                                   config: config.correlationOutputChart.inputSignal.line
-                                                 }
-                                               }}/>
-            }
-          </div>
-        </div>
-
         <div className={`row ${styles.chartRow}`} style={{height: 100}}>
           <div className={`col-12 ${styles.chartWrapper}`}>
-            {this.outputChartWrapper &&
+            {this.wrappers.outputChart &&
             <Scroller
               progress={Number(this.progress)}
               onScroll={this.moveScroller.bind(this)}
               precision={3}
-              width={this.outputChartWrapper.offsetWidth}
-              height={100}/>}
+              width={this.dims.outputChart ? this.dims.outputChart[0] : 0}
+              height={50}/>}
           </div>
         </div>
       </div>

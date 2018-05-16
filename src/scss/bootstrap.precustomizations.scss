@@ -1,5 +1,7 @@
-// Customize Bootstrap variables that get imported before the original Bootstrap variables.
+// Customize Bootstrap variables that get imported before the original Bootstrap variables. (Override variables here)
 // Thus original Bootstrap variables can depend on values from here.
-
 $body-bg: black;
 $body-color: white;
+$navbar-padding-y: 0;
+$dropdown-bg: lighten($body-bg, 10);
+$dropdown-link-color: white;

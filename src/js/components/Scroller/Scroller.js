@@ -36,7 +36,7 @@ export default class Scroller extends React.Component {
     // Merge config
     this.config = {
       scroller: {fill: "#17191E", ...props.config.scroller},
-      handle: {fill: "#565A66", height: props.height, width: (props.width * 10) / 100, ...props.config.handle}
+      handle: {fill: "#565A66", height: props.height, width: this.getHandleWidth(props.width), ...props.config.handle}
     };
 
     // Stage where scroller is mounted in
@@ -97,6 +97,19 @@ export default class Scroller extends React.Component {
     if (this.progress !== props.progress) {
       this.position(this.progressToPosition(props.progress))
     }
+
+    if (this.props.width !== props.width) {
+      this.config.handle.width = this.getHandleWidth(props.width);
+    }
+  }
+
+  /**
+   * Will return calculated width of the handle
+   * @param totalWidth number total width of the scroller
+   * @return {number}
+   */
+  getHandleWidth(totalWidth) {
+    return (totalWidth * 10) / 100;
   }
 
   /**

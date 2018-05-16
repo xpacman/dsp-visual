@@ -50,11 +50,8 @@ export default class Convolution extends React.Component {
 
     // Refs
     this.samplingRate = null; // Sampling frequency ref
-    this.kernelChartWrapper = null; // Kernel Chart wrapper ref
-    this.inputChartWrapper = null; // Input Chart wrapper ref
-    this.outputChartWrapper = null; // Output Chart wrapper ref
-    this.stepChartWrapper = null; // Step Chart wrapper ref
-    this.draggableChartWrapper = null; // Draggable Chart wrapper ref
+    this.wrappers = {}; // Object of wrappers (element refs) for charts
+    this.dims = {}; // Object of dimensions for charts
     this.draggableChart = null; // Draggable Chart
     this.outputChart = null; // Output Chart
     this.stepChart = null; // Step Chart
@@ -65,10 +62,10 @@ export default class Convolution extends React.Component {
   componentDidMount() {
     setTimeout(() => {
       // Delayed mount of konva components
-      this.forceUpdate();
+      this.rescaleDimensions();
       // Listen for window resizes
-      window.addEventListener("resize", () => this.forceUpdate());
-    }, 1000);
+      window.addEventListener("resize", () => this.rescaleDimensions());
+    }, 1200);
   }
 
   componentWillUnmount() {
@@ -77,6 +74,28 @@ export default class Convolution extends React.Component {
 
   toggleDropdown(dropdown) {
     this.setState({dropdowns: {...this.state.dropdowns, [dropdown]: !this.state.dropdowns[dropdown]}})
+  }
+
+  /**
+   * Will force update state and recalculates dimensions for canvas elements
+   */
+  rescaleDimensions() {
+    Object.keys(this.wrappers).forEach(key => {
+      this.dims[key] = this.getElementDimensions(this.wrappers[key]);
+    });
+    this.forceUpdate();
+  }
+
+  /**
+   * Will return element array containing element width and height
+   * @param element element reference
+   * @return {[width, height]|array}
+   */
+  getElementDimensions(element) {
+    if (element) {
+      return [element.offsetWidth, element.offsetHeight];
+    }
+    return [undefined, undefined];
   }
 
   /**
@@ -306,221 +325,222 @@ export default class Convolution extends React.Component {
         </Navbar>
 
         <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="input-chart-wrapper" ref={(elem) => this.inputChartWrapper = elem}
+          <div id="input-chart-wrapper" ref={(elem) => this.wrappers.inputChart = elem}
                className={`col-4 ${styles.chartWrapper}`}>
-            {this.inputChartWrapper && <Chart ref={(chart) => this.inputChart = chart}
-                                              wrapper={this.inputChartWrapper}
-                                              width={this.inputChartWrapper.offsetWidth}
-                                              height={this.inputChartWrapper.offsetHeight}
-                                              xAxisLabel={"t [ms]"}
-                                              labelOffsets={{x: [20, 0], y: [0, 0]}}
-                                              labels={{
-                                                x: 20,
-                                                y: 0,
-                                                width: 50,
-                                                height: 20,
-                                                content: <Text text="Vstupní signál h(t)" {...config.chartLabelText} />
-                                              }}
-                                              xDomain={this.timeDomain}
-                                              yDomain={[-1, 1]}
-                                              datasets={{
-                                                inputSignal: {
-                                                  data: this.inputSignal.values(),
-                                                  config: config.convolutionInputChart.line
-                                                }
-                                              }}
-                                              onContentMousedrag={(chart) => {
-                                                this.onChartDraw("inputSignal", chart);
-                                                this.draggableChart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values(null, true, true));
-                                              }}
-                                              onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputSignal")}
-                                              onContentMousedown={(chart) => {
-                                                this.onDrawableChartClick("inputSignal", chart);
-                                                this.draggableChart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values(null, true, true));
-                                              }}/>
+            {this.wrappers.inputChart && <Chart ref={(chart) => this.inputChart = chart}
+                                                wrapper={this.wrappers.inputChart}
+                                                width={this.dims.inputChart ? this.dims.inputChart[0] : 0}
+                                                height={this.dims.inputChart ? this.dims.inputChart[1] : 0}
+                                                xAxisLabel={"t [ms]"}
+                                                labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                labels={{
+                                                  x: 20,
+                                                  y: 0,
+                                                  width: 50,
+                                                  height: 20,
+                                                  content: <Text
+                                                    text="Vstupní signál h(t)" {...config.chartLabelText} />
+                                                }}
+                                                xDomain={this.timeDomain}
+                                                yDomain={[-1, 1]}
+                                                datasets={{
+                                                  inputSignal: {
+                                                    data: this.inputSignal.values(),
+                                                    config: config.convolutionInputChart.line
+                                                  }
+                                                }}
+                                                onContentMousedrag={(chart) => {
+                                                  this.onChartDraw("inputSignal", chart);
+                                                  this.draggableChart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values(null, true, true));
+                                                }}
+                                                onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputSignal")}
+                                                onContentMousedown={(chart) => {
+                                                  this.onDrawableChartClick("inputSignal", chart);
+                                                  this.draggableChart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values(null, true, true));
+                                                }}/>
             }
           </div>
 
-          <div id="step-chart-wrapper" ref={(elem) => this.stepChartWrapper = elem}
+          <div id="step-chart-wrapper" ref={(elem) => this.wrappers.stepChart = elem}
                className={`col-4 ${styles.chartWrapper}`}>
-            {this.stepChartWrapper && <Chart ref={(chart) => this.stepChart = chart}
-                                             wrapper={this.stepChartWrapper}
-                                             width={this.stepChartWrapper.offsetWidth}
-                                             height={this.stepChartWrapper.offsetHeight}
-                                             xAxisLabel={"t [ms]"}
-                                             labelOffsets={{x: [20, 0], y: [0, 0]}}
-                                             clickSafe={true}
-                                             xTicksCount={1}
-                                             xStep={1}
-                                             xCrosshairDisabled={true}
-                                             labels={{
-                                               x: 20,
-                                               y: 0,
-                                               width: 50,
-                                               height: 20,
-                                               content: <Text text="x(n) ∗ h(t - n)" {...config.chartLabelText} />
-                                             }}
-                                             xDomain={[-1, 1]}
-                                             yDomain={this.outputChartYDomain}
-                                             datasets={{
-                                               stepSignal: {
-                                                 data: this.stepSignal.values(),
-                                                 config: {
-                                                   ...config.convolutionStepChart.rect,
-                                                   width: this.stepChartWrapper.offsetWidth - 95,
-                                                   offsetX: (this.stepChartWrapper.offsetWidth - 95) / 2
-                                                 },
-                                                 element: "bar"
-                                               }
-                                             }}/>
-            }
-          </div>
-
-          <div id="kernel-chart-wrapper" ref={(elem) => this.kernelChartWrapper = elem}
-               className={`col-4 ${styles.chartWrapper}`}>
-            {this.kernelChartWrapper && <Chart wrapper={this.kernelChartWrapper}
-                                               width={this.kernelChartWrapper.offsetWidth}
-                                               height={this.kernelChartWrapper.offsetHeight}
+            {this.wrappers.stepChart && <Chart ref={(chart) => this.stepChart = chart}
+                                               wrapper={this.wrappers.stepChart}
+                                               width={this.dims.stepChart ? this.dims.stepChart[0] : 0}
+                                               height={this.dims.stepChart ? this.dims.stepChart[1] : 0}
                                                xAxisLabel={"t [ms]"}
                                                labelOffsets={{x: [20, 0], y: [0, 0]}}
-                                               labels={{
-                                                 x: 20,
-                                                 y: 0,
-                                                 width: 50,
-                                                 height: 20,
-                                                 content: <Text
-                                                   text="Výstupní signál x(t)" {...config.chartLabelText} />
-                                               }}
-                                               xDomain={this.timeDomain}
-                                               yDomain={[-1, 1]}
-                                               datasets={{
-                                                 kernelSignal: {
-                                                   data: this.kernelSignal.values(),
-                                                   config: config.convolutionKernelChart.line
-                                                 }
-                                               }}
-                                               onContentMousedrag={(chart) => {
-                                                 this.onChartDraw("kernelSignal", chart);
-                                                 this.draggableChart.datasetPoints(`kernelSignalSampled`, this.kernelSignalSampled.values(null, true));
-                                               }}
-                                               onContentMouseup={this.onDrawableChartMouseUp.bind(this, "kernelSignal")}
-                                               onContentMousedown={(chart) => {
-                                                 this.onDrawableChartClick("kernelSignal", chart);
-                                                 this.draggableChart.datasetPoints(`kernelSignalSampled`, this.kernelSignalSampled.values(null, true));
-                                               }}/>
-            }
-          </div>
-
-        </div>
-        <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="output-chart-wrapper" ref={(elem) => this.outputChartWrapper = elem}
-               className={`col-12 ${styles.chartWrapper}`}>
-            {this.outputChartWrapper && <Chart ref={(chart) => this.outputChart = chart}
-                                               wrapper={this.outputChartWrapper}
-                                               width={this.outputChartWrapper.offsetWidth}
-                                               height={this.outputChartWrapper.offsetHeight}
-                                               xAxisLabel={"t [ms]"}
-                                               labelOffsets={{x: [20, 0], y: [0, 0]}}
-                                               yAxisLabel={"y(t)"}
-                                               xTicksCount={21}
-                                               labels={{
-                                                 x: 20,
-                                                 y: 0,
-                                                 width: 50,
-                                                 height: 20,
-                                                 content: <Text ref={(text => this.outputChartOffsetLabel = text)}
-                                                                text={`y(${offsetX}) = ∑ x(n) ∗ h(${offsetX} - n) = 0.00`} {...config.chartLabelText} />
-                                               }}
                                                clickSafe={true}
-                                               xDomain={this.outputChartXDomain}
+                                               xTicksCount={1}
+                                               xStep={1}
+                                               xCrosshairDisabled={true}
+                                               labels={{
+                                                 x: 20,
+                                                 y: 0,
+                                                 width: 50,
+                                                 height: 20,
+                                                 content: <Text text="x(n) ∗ h(t - n)" {...config.chartLabelText} />
+                                               }}
+                                               xDomain={[-1, 1]}
                                                yDomain={this.outputChartYDomain}
-                                               xStep={this.draggableStep}
                                                datasets={{
-                                                 outputSignal: {
-                                                   data: this.signalOutput.values(),
+                                                 stepSignal: {
+                                                   data: this.stepSignal.values(),
                                                    config: {
-                                                     ...config.convolutionOutputChart.rect,
-                                                     width: this.outputChartWrapper.offsetWidth / 21 - 10,
-                                                     offsetX: (this.outputChartWrapper.offsetWidth / 21 - 10) / 2
+                                                     ...config.convolutionStepChart.rect,
+                                                     width: this.wrappers.stepChart.offsetWidth - 95,
+                                                     offsetX: (this.wrappers.stepChart.offsetWidth - 95) / 2
                                                    },
                                                    element: "bar"
                                                  }
                                                }}/>
             }
           </div>
+
+          <div id="kernel-chart-wrapper" ref={(elem) => this.wrappers.kernelChart = elem}
+               className={`col-4 ${styles.chartWrapper}`}>
+            {this.wrappers.kernelChart && <Chart wrapper={this.wrappers.kernelChart}
+                                                 width={this.dims.kernelChart ? this.dims.kernelChart[0] : 0}
+                                                 height={this.dims.kernelChart ? this.dims.kernelChart[1] : 0}
+                                                 xAxisLabel={"t [ms]"}
+                                                 labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                 labels={{
+                                                   x: 20,
+                                                   y: 0,
+                                                   width: 50,
+                                                   height: 20,
+                                                   content: <Text
+                                                     text="Výstupní signál x(t)" {...config.chartLabelText} />
+                                                 }}
+                                                 xDomain={this.timeDomain}
+                                                 yDomain={[-1, 1]}
+                                                 datasets={{
+                                                   kernelSignal: {
+                                                     data: this.kernelSignal.values(),
+                                                     config: config.convolutionKernelChart.line
+                                                   }
+                                                 }}
+                                                 onContentMousedrag={(chart) => {
+                                                   this.onChartDraw("kernelSignal", chart);
+                                                   this.draggableChart.datasetPoints(`kernelSignalSampled`, this.kernelSignalSampled.values(null, true));
+                                                 }}
+                                                 onContentMouseup={this.onDrawableChartMouseUp.bind(this, "kernelSignal")}
+                                                 onContentMousedown={(chart) => {
+                                                   this.onDrawableChartClick("kernelSignal", chart);
+                                                   this.draggableChart.datasetPoints(`kernelSignalSampled`, this.kernelSignalSampled.values(null, true));
+                                                 }}/>
+            }
+          </div>
+
         </div>
         <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="draggable-chart-wrapper" ref={(elem) => this.draggableChartWrapper = elem}
+          <div id="output-chart-wrapper" ref={(elem) => this.wrappers.outputChart = elem}
                className={`col-12 ${styles.chartWrapper}`}>
-            {this.draggableChartWrapper && <Chart ref={(chart) => this.draggableChart = chart}
-                                                  wrapper={this.draggableChartWrapper}
-                                                  width={this.draggableChartWrapper.offsetWidth}
-                                                  height={this.draggableChartWrapper.offsetHeight}
-                                                  xAxisLabel={"t [ms]"}
-                                                  labelOffsets={{x: [20, 0], y: [0, 0]}}
-                                                  xTicksCount={20}
-                                                  labels={[
-                                                    {
-                                                      x: 20,
-                                                      y: 0,
-                                                      width: 50,
-                                                      height: 20,
-                                                      content: <Text
-                                                        text={"Vzorkovaný h(t)"} {...config.chartLabelText} />
-                                                    },
-                                                    {
-                                                      x: 120,
-                                                      y: 0,
-                                                      width: 50,
-                                                      height: 20,
-                                                      content: <Text
-                                                        text={"Vzorkovaný x(t)"} {...config.chartLabelText} />
-                                                    },
-                                                    {
-                                                      x: 220,
-                                                      y: 0,
-                                                      width: 50,
-                                                      height: 20,
-                                                      content: <Text
-                                                        ref={(text => this.draggableChartOffsetLabel = text)}
-                                                        text={`Zpoždění = ${offsetX}ms`} {...config.chartLabelText} />
-                                                    }]}
-                                                  clickSafe={true}
-                                                  xStep={this.draggableStep}
-                                                  xDomain={this.draggableTimeDomain}
-                                                  yDomain={[-1, 1]}
-                                                  datasets={{
-                                                    inputSignalSampled: {
-                                                      data: this.inputSignalSampled.values(null, true, true),
-                                                      config: {
-                                                        ...config.convolutionInputChart.rect,
-                                                        width: this.draggableChartWrapper.offsetWidth / 21 - 10,
-                                                        offsetX: (this.draggableChartWrapper.offsetWidth / 21 - 10) / 2
+            {this.wrappers.outputChart && <Chart ref={(chart) => this.outputChart = chart}
+                                                 wrapper={this.wrappers.outputChart}
+                                                 width={this.dims.outputChart ? this.dims.outputChart[0] : 0}
+                                                 height={this.dims.outputChart ? this.dims.outputChart[1] : 0}
+                                                 xAxisLabel={"t [ms]"}
+                                                 labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                 yAxisLabel={"y(t)"}
+                                                 xTicksCount={21}
+                                                 labels={{
+                                                   x: 20,
+                                                   y: 0,
+                                                   width: 50,
+                                                   height: 20,
+                                                   content: <Text ref={(text => this.outputChartOffsetLabel = text)}
+                                                                  text={`y(${offsetX}) = ∑ x(n) ∗ h(${offsetX} - n) = 0.00`} {...config.chartLabelText} />
+                                                 }}
+                                                 clickSafe={true}
+                                                 xDomain={this.outputChartXDomain}
+                                                 yDomain={this.outputChartYDomain}
+                                                 xStep={this.draggableStep}
+                                                 datasets={{
+                                                   outputSignal: {
+                                                     data: this.signalOutput.values(),
+                                                     config: {
+                                                       ...config.convolutionOutputChart.rect,
+                                                       width: this.wrappers.outputChart.offsetWidth / 21 - 10,
+                                                       offsetX: (this.wrappers.outputChart.offsetWidth / 21 - 10) / 2
+                                                     },
+                                                     element: "bar"
+                                                   }
+                                                 }}/>
+            }
+          </div>
+        </div>
+        <div className={`row h-100 ${styles.chartRow}`}>
+          <div id="draggable-chart-wrapper" ref={(elem) => this.wrappers.draggableChart = elem}
+               className={`col-12 ${styles.chartWrapper}`}>
+            {this.wrappers.draggableChart && <Chart ref={(chart) => this.draggableChart = chart}
+                                                    wrapper={this.wrappers.draggableChart}
+                                                    width={this.dims.draggableChart ? this.dims.draggableChart[0] : 0}
+                                                    height={this.dims.draggableChart ? this.dims.draggableChart[1] : 0}
+                                                    xAxisLabel={"t [ms]"}
+                                                    labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                    xTicksCount={20}
+                                                    labels={[
+                                                      {
+                                                        x: 20,
+                                                        y: 0,
+                                                        width: 50,
+                                                        height: 20,
+                                                        content: <Text
+                                                          text={"Vzorkovaný h(t)"} {...config.chartLabelText} />
                                                       },
-                                                      element: "bar"
-                                                    },
-                                                    kernelSignalSampled: {
-                                                      data: this.kernelSignalSampled.values(),
-                                                      config: {
-                                                        ...config.convolutionKernelChart.rect,
-                                                        width: this.draggableChartWrapper.offsetWidth / 21 - 10,
-                                                        offsetX: (this.draggableChartWrapper.offsetWidth / 21 - 10) / 2
+                                                      {
+                                                        x: 120,
+                                                        y: 0,
+                                                        width: 50,
+                                                        height: 20,
+                                                        content: <Text
+                                                          text={"Vzorkovaný x(t)"} {...config.chartLabelText} />
                                                       },
-                                                      element: "bar"
-                                                    },
-                                                  }}/>
+                                                      {
+                                                        x: 220,
+                                                        y: 0,
+                                                        width: 50,
+                                                        height: 20,
+                                                        content: <Text
+                                                          ref={(text => this.draggableChartOffsetLabel = text)}
+                                                          text={`Zpoždění = ${offsetX}ms`} {...config.chartLabelText} />
+                                                      }]}
+                                                    clickSafe={true}
+                                                    xStep={this.draggableStep}
+                                                    xDomain={this.draggableTimeDomain}
+                                                    yDomain={[-1, 1]}
+                                                    datasets={{
+                                                      inputSignalSampled: {
+                                                        data: this.inputSignalSampled.values(null, true, true),
+                                                        config: {
+                                                          ...config.convolutionInputChart.rect,
+                                                          width: this.wrappers.draggableChart.offsetWidth / 21 - 10,
+                                                          offsetX: (this.wrappers.draggableChart.offsetWidth / 21 - 10) / 2
+                                                        },
+                                                        element: "bar"
+                                                      },
+                                                      kernelSignalSampled: {
+                                                        data: this.kernelSignalSampled.values(),
+                                                        config: {
+                                                          ...config.convolutionKernelChart.rect,
+                                                          width: this.wrappers.draggableChart.offsetWidth / 21 - 10,
+                                                          offsetX: (this.wrappers.draggableChart.offsetWidth / 21 - 10) / 2
+                                                        },
+                                                        element: "bar"
+                                                      },
+                                                    }}/>
             }
           </div>
         </div>
         <div className={`row ${styles.chartRow}`} style={{height: 100}}>
           <div className={`col-12 ${styles.chartWrapper}`}>
-            {this.draggableChartWrapper &&
+            {this.wrappers.draggableChart &&
             <Scroller
               progress={this.progress}
               onScroll={this.moveScroller.bind(this)}
               precision={3}
-              width={this.draggableChartWrapper.offsetWidth}
-              height={100}/>}
+              width={this.dims.draggableChart ? this.dims.draggableChart[0] : 0}
+              height={50}/>}
           </div>
         </div>
       </div>

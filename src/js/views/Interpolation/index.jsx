@@ -43,17 +43,18 @@ export default class Interpolation extends React.Component {
 
     // Refs
     this.samplingRate = null; // Input values ref
-    this.chartWrapper = null; // Chart wrapper ref
+    this.wrappers = {}; // Object of wrappers (element refs) for charts
+    this.dims = {}; // Object of dimensions for charts
     this.chart = null; // Chart instance ref
   }
 
   componentDidMount() {
     setTimeout(() => {
-      // Delayed mount of konva chart
-      this.forceUpdate();
+      // Delayed mount of konva components
+      this.rescaleDimensions();
       // Listen for window resizes
-      window.addEventListener("resize", () => this.forceUpdate());
-    }, 1000);
+      window.addEventListener("resize", () => this.rescaleDimensions());
+    }, 1200);
   }
 
   componentWillUnmount() {
@@ -62,6 +63,28 @@ export default class Interpolation extends React.Component {
 
   toggleDropdown(dropdown) {
     this.setState({dropdowns: {...this.state.dropdowns, [dropdown]: !this.state.dropdowns[dropdown]}})
+  }
+
+  /**
+   * Will force update state and recalculates dimensions for canvas elements
+   */
+  rescaleDimensions() {
+    Object.keys(this.wrappers).forEach(key => {
+      this.dims[key] = this.getElementDimensions(this.wrappers[key]);
+    });
+    this.forceUpdate();
+  }
+
+  /**
+   * Will return element array containing element width and height
+   * @param element element reference
+   * @return {[width, height]|array}
+   */
+  getElementDimensions(element) {
+    if (element) {
+      return [element.offsetWidth, element.offsetHeight];
+    }
+    return [undefined, undefined];
   }
 
   /**
@@ -216,106 +239,113 @@ export default class Interpolation extends React.Component {
               <span className="pr-3">T<sub>vz</sub> = {samplingPeriod.toFixed(3)}ms</span>
             </NavItem>
 
-            <FormGroup check
-                       className="d-inline-flex align-items-center px-3">
-              <Label check>
-                <Input checked={display.originalSignal}
-                       onChange={() => this.toggleSignal("originalSignal", !display.originalSignal)}
-                       type="checkbox"/>{' '}
-                &nbsp;Původní signál <span className={styles.legendSquare}
-                                           style={{background: config.interpolationOriginalSignal.line.stroke}}/>
-              </Label>
-            </FormGroup>
-            <FormGroup check
-                       className="d-inline-flex align-items-center px-3">
-              <Label check>
-                <Input checked={display.originalSampled}
-                       onChange={() => this.toggleSignal("originalSampled", !display.originalSampled)}
-                       type="checkbox"/>{' '}
-                &nbsp;Vzorkovaný signál <span className={styles.legendSquare}
-                                              style={{background: config.interpolationSampledSignal.rect.stroke}}/>
-              </Label>
-            </FormGroup>
-            <FormGroup check
-                       className="d-inline-flex align-items-center px-3">
-              <Label check>
-                <Input checked={display.zeroOrderHold}
-                       onChange={() => this.toggleSignal("zeroOrderHold", !display.zeroOrderHold)}
-                       type="checkbox"/>{' '}
-                &nbsp;Schodová interpolace <span className={styles.legendSquare}
-                                                 style={{background: config.interpolationZOHSignal.line.stroke}}/>
-              </Label>
-            </FormGroup>
-            <FormGroup check
-                       className="d-inline-flex align-items-center px-3">
-              <Label check>
-                <Input checked={display.firstOrderHold}
-                       onChange={() => this.toggleSignal("firstOrderHold", !display.firstOrderHold)}
-                       type="checkbox"/>{' '}
-                &nbsp;Lineární interpolace <span className={styles.legendSquare}
-                                                 style={{background: config.interpolationFOHSignal.line.stroke}}/>
-              </Label>
-            </FormGroup>
+            <NavItem className="d-inline-flex align-items-center px-3">
+              <FormGroup check>
+                <Label check className="py-2">
+                  <Input checked={display.originalSignal}
+                         onChange={() => this.toggleSignal("originalSignal", !display.originalSignal)}
+                         type="checkbox"/>{' '}
+                  &nbsp;Původní signál <span className={styles.legendSquare}
+                                             style={{background: config.interpolationOriginalSignal.line.stroke}}/>
+                </Label>
+              </FormGroup>
+            </NavItem>
+
+            <NavItem className="d-inline-flex align-items-center px-3">
+              <FormGroup check>
+                <Label check className="py-2">
+                  <Input checked={display.originalSampled}
+                         onChange={() => this.toggleSignal("originalSampled", !display.originalSampled)}
+                         type="checkbox"/>{' '}
+                  &nbsp;Vzorkovaný signál <span className={styles.legendSquare}
+                                                style={{background: config.interpolationSampledSignal.rect.stroke}}/>
+                </Label>
+              </FormGroup>
+            </NavItem>
+
+            <NavItem className="d-inline-flex align-items-center px-3">
+              <FormGroup check>
+                <Label check className="py-2">
+                  <Input checked={display.zeroOrderHold}
+                         onChange={() => this.toggleSignal("zeroOrderHold", !display.zeroOrderHold)}
+                         type="checkbox"/>{' '}
+                  &nbsp;Schodová interpolace <span className={styles.legendSquare}
+                                                   style={{background: config.interpolationZOHSignal.line.stroke}}/>
+                </Label>
+              </FormGroup>
+            </NavItem>
+
+            <NavItem className="d-inline-flex align-items-center px-3">
+              <FormGroup check>
+                <Label check className="py-2">
+                  <Input checked={display.firstOrderHold}
+                         onChange={() => this.toggleSignal("firstOrderHold", !display.firstOrderHold)}
+                         type="checkbox"/>{' '}
+                  &nbsp;Lineární interpolace <span className={styles.legendSquare}
+                                                   style={{background: config.interpolationFOHSignal.line.stroke}}/>
+                </Label>
+              </FormGroup>
+            </NavItem>
           </Nav>
         </Navbar>
 
         <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="interpolation-chart-wrapper" ref={(elem) => this.chartWrapper = elem}
+          <div id="interpolation-chart-wrapper" ref={(elem) => this.wrappers.chart = elem}
                className={`col-12 ${styles.chartWrapper}`}>
-            {this.chartWrapper && <Chart ref={(chart) => this.chart = chart}
-                                         wrapper={this.chartWrapper}
-                                         width={this.chartWrapper.offsetWidth}
-                                         height={this.chartWrapper.offsetHeight}
-                                         xAxisLabel={"t [ms]"}
-                                         yAxisLabel={"x(t)"}
-                                         labelOffsets={{x: [20, 0], y: [0, 0]}}
-                                         xDomain={this.timeDomain}
-                                         yDomain={this.yDomain}
-                                         datasets={{
-                                           originalSignal: {
-                                             data: this.originalSignal.values(),
-                                             config: {
-                                               ...config.interpolationOriginalSignal.line,
-                                               visible: display.originalSignal
-                                             }
-                                           },
-                                           originalSampled: {
-                                             data: this.originalSampled.values(),
-                                             config: {
-                                               ...config.interpolationSampledSignal.rect,
-                                               visible: display.originalSampled,
-                                               width: 1
+            {this.wrappers.chart && <Chart ref={(chart) => this.chart = chart}
+                                           wrapper={this.wrappers.chart}
+                                           width={this.dims.chart ? this.dims.chart[0] : 0}
+                                           height={this.dims.chart ? this.dims.chart[1] : 0}
+                                           xAxisLabel={"t [ms]"}
+                                           yAxisLabel={"x(t)"}
+                                           labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                           xDomain={this.timeDomain}
+                                           yDomain={this.yDomain}
+                                           datasets={{
+                                             originalSignal: {
+                                               data: this.originalSignal.values(),
+                                               config: {
+                                                 ...config.interpolationOriginalSignal.line,
+                                                 visible: display.originalSignal
+                                               }
                                              },
-                                             element: "bar"
-                                           },
-                                           zeroOrderHold: {
-                                             data: InterpolationEngine.getZeroOrderHoldInterpolation(this.originalSampled.values()),
-                                             config: {
-                                               ...config.interpolationZOHSignal.line,
-                                               visible: display.zeroOrderHold
+                                             originalSampled: {
+                                               data: this.originalSampled.values(),
+                                               config: {
+                                                 ...config.interpolationSampledSignal.rect,
+                                                 visible: display.originalSampled,
+                                                 width: 1
+                                               },
+                                               element: "bar"
+                                             },
+                                             zeroOrderHold: {
+                                               data: InterpolationEngine.getZeroOrderHoldInterpolation(this.originalSampled.values()),
+                                               config: {
+                                                 ...config.interpolationZOHSignal.line,
+                                                 visible: display.zeroOrderHold
+                                               }
+                                             },
+                                             firstOrderHold: {
+                                               data: this.originalSampled.values(),
+                                               config: {
+                                                 ...config.interpolationFOHSignal.line,
+                                                 visible: display.firstOrderHold
+                                               }
                                              }
-                                           },
-                                           firstOrderHold: {
-                                             data: this.originalSampled.values(),
-                                             config: {
-                                               ...config.interpolationFOHSignal.line,
-                                               visible: display.firstOrderHold
-                                             }
-                                           }
-                                         }}
-                                         onContentMousedrag={(chart => {
-                                           this.onChartDraw("originalSignal", chart);
-                                           this.originalSampled.values(Signal.getSamples(this.state.samplingRate, this.originalSignal));
-                                           chart.datasetPoints("originalSampled", this.originalSampled.values())
-                                         })}
-                                         onContentMousedown={(chart => {
-                                           this.onDrawableChartClick("originalSignal", chart);
-                                           this.originalSampled.values(Signal.getSamples(this.state.samplingRate, this.originalSignal));
-                                           chart.datasetPoints("originalSampled", this.originalSampled.values())
-                                         })}
-                                         onContentMouseup={(chart => {
-                                           this.onDrawableChartMouseUp("originalSignal", chart)
-                                         })}/>
+                                           }}
+                                           onContentMousedrag={(chart => {
+                                             this.onChartDraw("originalSignal", chart);
+                                             this.originalSampled.values(Signal.getSamples(this.state.samplingRate, this.originalSignal));
+                                             chart.datasetPoints("originalSampled", this.originalSampled.values())
+                                           })}
+                                           onContentMousedown={(chart => {
+                                             this.onDrawableChartClick("originalSignal", chart);
+                                             this.originalSampled.values(Signal.getSamples(this.state.samplingRate, this.originalSignal));
+                                             chart.datasetPoints("originalSampled", this.originalSampled.values())
+                                           })}
+                                           onContentMouseup={(chart => {
+                                             this.onDrawableChartMouseUp("originalSignal", chart)
+                                           })}/>
             }
           </div>
         </div>

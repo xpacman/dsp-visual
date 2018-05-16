@@ -20,5 +20,5 @@
 
 .navbar {
   border-bottom: 1px solid $body-border;
-  height: $navbar-height;
+  min-height: $navbar-height;
 }

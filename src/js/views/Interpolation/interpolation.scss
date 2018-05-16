@@ -19,13 +19,12 @@
 }
 
 .legendSquare {
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   display: inline-block;
-  margin-top: 0.3rem;
 }
 
 .navbar {
   border-bottom: 1px solid $body-border;
-  min-height: 28px;
+  min-height: $navbar-height;
 }

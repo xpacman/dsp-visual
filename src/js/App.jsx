@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {BrowserRouter as Router, Route, Switch} from 'react-router-dom';
+import {BrowserRouter as Router, Route, Switch, withRouter} from 'react-router-dom';
 import {Provider} from 'react-redux';
 import store from './store';
 import {SideMenu} from './components';
@@ -11,6 +11,8 @@ import Interpolation from './views/Interpolation';
 import Convolution from './views/Convolution';
 import Correlation from './views/Correlation';
 
+const RoutedSideMenu = withRouter(SideMenu);
+
 export default class App extends Component {
 
   render() {
@@ -19,7 +21,7 @@ export default class App extends Component {
       <Provider store={store}>
         <Router>
           <div className={`${styles.mainWrapper} ${styles["mainWrapper--menuCollapsed"]}`}>
-            <SideMenu />
+            <RoutedSideMenu />
             <Switch>
               <Route exact path="/" component={Home}/>
               <Route path="/regrese" component={Regression}/>
