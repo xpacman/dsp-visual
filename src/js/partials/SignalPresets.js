@@ -4,6 +4,18 @@
 import Signal from "./Signal";
 
 /**
+ * Will return blank empty signal with each value equal to zero
+ * @param xMin
+ * @param xMax
+ * @param xStep
+ * @return {Signal}
+ */
+export function getBlankSignal(xMin, xMax, xStep) {
+  const signal = new Signal();
+  signal.generateValues(xMin, xMax, xStep);
+  return signal;
+}
+/**
  * Will return sin signal
  * @param xMin number min of signal x domain
  * @param xMax number max of signal x domain

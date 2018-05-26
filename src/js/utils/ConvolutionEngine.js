@@ -30,40 +30,23 @@ export default class ConvolutionEngine {
   }
 
   /**
-   * Returns array of overlapping points in time in each signal
-   * @param inputSignal Signal instance of input signal
-   * @param kernelSignal Signal instance of kernel signal
+   * Returns array of additions for convolution result. FUNCTION DOES NOT PROVIDE CONVOLUTION TIME REVERSE!
+   * @param timeReversedValues array of points of time reversed input signal [[x0, y0],...]
+   * @param kernelValues  array of points of kernel signal [[x0, y0],...]
    * @return {*} array of arrays [[input overlapping points <[[x0,y0],...]>, kernel overlapping points <[[x0, y0],...]>]
    * or empty array if no points are overlapping in time
    */
-  static getOverlappingPoints(inputSignal, kernelSignal) {
-    const inputRange = inputSignal.xDomain(),
-      kernelRange = kernelSignal.xDomain(),
-      inputTimeOffset = inputSignal.timeOffset(),
-      kernelTimeOffset = kernelSignal.timeOffset();
-
-    let xMin = 0,
-      xMax = 0;
-
-    // Determine which points are overlapping
-    if (inputRange[1] + inputTimeOffset >= kernelRange[0] + kernelTimeOffset
-      && inputRange[0] + inputTimeOffset <= kernelRange[1] + kernelTimeOffset) {
-      xMin = kernelRange[0] + kernelTimeOffset;
-      xMax = inputRange[1] + inputTimeOffset;
-
-      if (inputRange[0] + inputTimeOffset >= kernelRange[0] + kernelTimeOffset) {
-        xMin = inputRange[0] + inputTimeOffset;
-
-        if (inputRange[1] + inputTimeOffset >= kernelRange[1] + kernelTimeOffset) {
-          xMax = kernelRange[1] + kernelTimeOffset;
+  static getConvolutionStep(timeReversedValues, kernelValues) {
+    const ret = [];
+    kernelValues.forEach((point, i) => {
+      ret[i] = [point[0], 0];
+      for (let j = 0; j < timeReversedValues.length - 1; j++) {
+        if (timeReversedValues[j][0] === point[0]) {
+          ret[i][1] = timeReversedValues[j][1] * point[1];
         }
       }
-
-      const kernelOverlappingPoints = kernelSignal.getPointsInRange(xMin, xMax),
-        inputOverlappingPoints = kernelSignal.getPointsInRange(-xMax, -xMin);
-      return [inputOverlappingPoints, kernelOverlappingPoints];
-    }
-    return [];
+    });
+    return ret;
   }
 
 }

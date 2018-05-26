@@ -114,8 +114,8 @@ module.exports = {
     rect: {
       fill: "rgba(223, 77, 38, 0.8)",
       stroke: "#df4b26",
-      width: 30,
-      offsetX: 15
+      width: 10,
+      offsetX: 5
     }
   },
   convolutionInputChart: {
@@ -127,8 +127,8 @@ module.exports = {
     rect: {
       fill: "rgba(223, 177, 38, 0.8)",
       stroke: "#DFB126",
-      width: 60,
-      offsetX: 15
+      width: 10,
+      offsetX: 5
     }
   },
   convolutionOutputChart: {
@@ -140,8 +140,8 @@ module.exports = {
     rect: {
       fill: "rgba(108, 198, 34, 0.8",
       stroke: "#B8D725",
-      width: 30,
-      offsetX: 15
+      width: 10,
+      offsetX: 5
     }
   },
   convolutionStepChart: {
@@ -153,8 +153,8 @@ module.exports = {
     rect: {
       fill: "rgba(170, 16, 37, 0.8)",
       stroke: "#D4243C",
-      width: 30,
-      offsetX: 15
+      width: 10,
+      offsetX: 5
     }
   },
   correlationInputChart: {
@@ -184,7 +184,9 @@ module.exports = {
       },
       rect: {
         fill: "rgba(108, 198, 34, 0.8",
-        stroke: "#B8D725"
+        stroke: "#B8D725",
+        width: 4,
+        offsetX: 2
       }
     }
   },

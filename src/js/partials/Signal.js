@@ -201,6 +201,16 @@ export default class Signal {
   }
 
   /**
+   * Will set points given as array
+   * @param points array of arrays [[x0, y0],...]
+   */
+  setPoints(points) {
+    points.forEach(point => {
+      this.setPoint(point[0], point[1])
+    })
+  }
+
+  /**
    * Returns samples from signal given
    * @param samplingRate number sampling frequency in Hz
    * @param signal Signal to sample

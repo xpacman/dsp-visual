@@ -487,6 +487,7 @@ export default class Chart extends React.Component {
                 <Line key={index}
                       points={[this.xScale(grid[0]), grid[1], this.xScale(grid[2]), grid[3]]}
                       {...config.axisTickLine}
+                      strokeWidth={Number(grid[0]) === 0 ? 3 : config.axisTickLine.strokeWidth}
                 />)
             })
           }
@@ -497,6 +498,7 @@ export default class Chart extends React.Component {
                 <Line key={index}
                       points={[grid[0], this.yScale(grid[1]), grid[2], this.yScale(grid[3])]}
                       {...config.axisTickLine}
+                      strokeWidth={Number(grid[1]) === 0 ? 3 : config.axisTickLine.strokeWidth}
                 />)
             })
           }
@@ -550,7 +552,7 @@ export default class Chart extends React.Component {
           }
           {
             yAxisLabel && <Text text={`${yAxisLabel} ↑`} x={this.trimDims[0] / 2 - margins[3] - 5}
-                                offsetX={labelOffsets.y[0]}
+                                offsetX={this.xScale(0) + labelOffsets.y[0]}
                                 offsetY={labelOffsets.y[1]}
                                 y={margins[0] / 2} {...config.axisLabel}/>
           }
