@@ -1,6 +1,7 @@
 /**
  * Created by paco on 27.2.18.
  */
+const Decimal = require('decimal.js-light');
 
 export default class InterpolationEngine {
 
@@ -22,11 +23,11 @@ export default class InterpolationEngine {
   }
 
   /**
-   * Returns zero order (stair) interpolation from input values (signal [[x1, y1],...])
+   * Returns zero order (stair) interpolation values to be displayed as konva line
    * @param inputValues Array of signal points [[x1, y1],...]
    * @return {Array} of interpolated points [[x1, y1],...]
    */
-  static getZeroOrderHoldInterpolation(inputValues) {
+  static getZeroOrderHoldLine(inputValues) {
     const ret = [];
 
     inputValues.map((point, index) => {
@@ -38,6 +39,57 @@ export default class InterpolationEngine {
     });
 
     return ret;
+  }
+
+  /**
+   * Will return zero order hold interpolation in time given
+   * @param samples array of arrays [[x0,y0],...]
+   * @param samplingPeriod number sampling period
+   * @param t number target time to interpolate
+   * @param precision number of decimal places to work with
+   * @return {number}
+   */
+  static zeroOrderHoldInterpolation(samples, samplingPeriod, t, precision = 3) {
+    t = Number(t) + 0.001;
+    const period = new Decimal(samplingPeriod),
+      // Reconstruction function
+      h = (time) => {
+        if (0 <= time && time <= samplingPeriod) {
+          // Zero order hold -> 1 for 0 <= t <= T
+          return 1
+        }
+        return 0
+      };
+    let result = 0;
+    samples.forEach((sample, i) => {
+      result += sample[1] * h(t - i * period.toFixed(precision));
+    });
+    return result;
+  }
+
+  /**
+   * Will return first order hold interpolation in time given
+   * @param samples array of arrays [[x0,y0],...]
+   * @param samplingPeriod number sampling period
+   * @param t number target time to interpolate
+   * @param precision number of decimal places to work with
+   * @return {number}
+   */
+  static firstOrderHoldInterpolation(samples, samplingPeriod, t, precision = 3) {
+    const period = new Decimal(samplingPeriod),
+      // Reconstruction function
+      h = (time) => {
+        if (0 <= Math.abs(time) && Math.abs(time) <= period.toFixed(precision)) {
+          // First order hold -> 1 - |t|/T for 0 <= |t| <= T
+          return 1 - (Math.abs(time) / period.toFixed(precision));
+        }
+        return 0
+      };
+    let result = 0;
+    samples.forEach((sample, i) => {
+      result += sample[1] * h(t - i * period.toFixed(precision))
+    });
+    return result;
   }
 
   /**

@@ -5,7 +5,7 @@
 export default class ConvolutionEngine {
 
   /**
-   * Returns convolution result of two signal value arrays
+   * Returns discrete convolution result of two signal value arrays
    * @param inputValues array input signal points [[x0, y0],...]
    * @param kernelValues array kernel signal points [[x0, y0],...]
    * @return {Array} of samples [[x0, y0],....]

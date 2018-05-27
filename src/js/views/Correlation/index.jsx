@@ -400,7 +400,7 @@ export default class Correlation extends React.Component {
                                                 width={this.dims.inputChart ? this.dims.inputChart[0] : 0}
                                                 height={this.dims.inputChart ? this.dims.inputChart[1] : 0}
                                                 xAxisLabel={"t [ms]"}
-                                                labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                axisLabelOffsets={{x: [20, 0], y: [0, 0]}}
                                                 labels={{
                                                   x: 20,
                                                   y: 0,
@@ -449,7 +449,7 @@ export default class Correlation extends React.Component {
                                                    clickSafe={true}
                                                    xTicksCount={10}
                                                    xStep={0.01}
-                                                   labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                   axisLabelOffsets={{x: [20, 0], y: [0, 0]}}
                                                    labels={{
                                                      x: 20,
                                                      y: 0,
@@ -479,7 +479,7 @@ export default class Correlation extends React.Component {
                                                  height={this.dims.outputChart ? this.dims.outputChart[1] : 0}
                                                  xAxisLabel={"τ [ms]"}
                                                  clickSafe={true}
-                                                 labelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                 axisLabelOffsets={{x: [20, 0], y: [0, 0]}}
                                                  labels={[{
                                                    x: 20,
                                                    y: 0,

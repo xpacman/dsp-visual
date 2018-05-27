@@ -36,8 +36,8 @@ export default class Chart extends React.Component {
     yTicksCount: PropTypes.number,
     // Labels for this chart. Will be displayed as Konva Rect. You can pass [{x, y, width, height, config: <object Konva props>, content: <element>}]
     labels: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
-    // Offsets of the labels {x: [horizontal, vertical], y: [...]}
-    labelOffsets: PropTypes.object,
+    // Offsets of the axis labels {x: [horizontal, vertical], y: [...]}
+    axisLabelOffsets: PropTypes.object,
     // horizontal size of the chart [min, max]
     xRange: PropTypes.array,
     // X axis steps (crosshairs use this)
@@ -58,6 +58,8 @@ export default class Chart extends React.Component {
     onContentMouseup: PropTypes.func,
     // Content mouse drag callback
     onContentMousedrag: PropTypes.func,
+    // Content mouse move callback
+    onContentMousemove: PropTypes.func,
     // Ignore mousedown and mouseup events on this chart
     clickSafe: PropTypes.bool,
     // Crosshair for x axis hidden
@@ -76,7 +78,7 @@ export default class Chart extends React.Component {
     xDomain: [0, 1],
     yDomain: [0, 1],
     tickMargins: {x: [0, 20], y: [20, 0]},
-    labelOffsets: {x: [0, 0], y: [0, 0]},
+    axisLabelOffsets: {x: [0, 0], y: [0, 0]},
     datasets: {},
     clickSafe: false,
     xCrosshairDisabled: false,
@@ -171,6 +173,7 @@ export default class Chart extends React.Component {
           this.handleCrosshairsMove(cursorPosition);
           this.pointerPosition = cursorPosition;
         }
+        this.props.onContentMousemove && this.props.onContentMousemove(this);
 
         // Click and drag block
         if (!this.isDragging) {
@@ -277,20 +280,13 @@ export default class Chart extends React.Component {
    * @param cursorPosition object {x: number, y: number} position of the cursor
    */
   handleCrosshairsMove(cursorPosition) {
-    // Crosshair line and text are grouped for synchronized moving
-    const xCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[0],
-      yCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[1],
-      xText = xCrosshairGroup.getChildren()[1],
-      yText = yCrosshairGroup.getChildren()[1];
-
     if (!this.props.xCrosshairDisabled) {
-      xCrosshairGroup.setAttr("x", cursorPosition.x - this.props.margins[3]);
-      xText.setAttr("text", this.getCordXValue(xCrosshairGroup.getPosition().x + this.props.margins[3], 2));
+      this.xCrosshairPosition(cursorPosition.x);
     }
 
     if (!this.props.yCrosshairDisabled) {
-      yCrosshairGroup.setAttr("y", cursorPosition.y - this.props.margins[0]);
-      yText.setAttr("text", this.getCordYValue(yCrosshairGroup.getPosition().y + this.props.margins[0], 2));
+      this.yCrosshairPosition(cursorPosition.y);
+
     }
 
     this.canvas.layers.crosshairsLayer.batchDraw();
@@ -325,6 +321,44 @@ export default class Chart extends React.Component {
 
     this.canvas.layers.axisLayer.batchDraw();
   }
+
+  /**
+   * Gets or sets current x crosshair position
+   * @param x number x position to be set as crosshair position. If null -> will return current x value
+   * @param precision number
+   * @return {*|Integer|String|Object|Array|any}
+   */
+  xCrosshairPosition(x = null, precision = 2) {
+    // Crosshair line and text are grouped for synchronized moving
+    const xCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[0],
+      xText = xCrosshairGroup.getChildren()[1];
+
+    // Set value
+    if (x !== null) {
+      xCrosshairGroup.setAttr("x", x - this.props.margins[3]);
+      xText.setAttr("text", this.getCordXValue(xCrosshairGroup.getPosition().x + this.props.margins[3], precision));
+    }
+    return xText.getAttr("text");
+  }
+
+  /**
+   * Gets or sets current y crosshair position
+   * @param y number y position to be set as crosshair position. If null -> will return current y value
+   * @return {*|Integer|String|Object|Array|any}
+   */
+  yCrosshairPosition(y = null) {
+    // Crosshair line and text are grouped for synchronized moving
+    const yCrosshairGroup = this.canvas.layers.crosshairsLayer.getChildren()[1],
+      yText = yCrosshairGroup.getChildren()[1];
+
+    // Set value
+    if (y !== null) {
+      yCrosshairGroup.setAttr("y", y - this.props.margins[0]);
+      yText.setAttr("text", this.getCordYValue(yCrosshairGroup.getPosition().y + this.props.margins[0], 2));
+    }
+    return yText.getAttr("text");
+  }
+
 
   /**
    * Generates ticks for x axis
@@ -472,7 +506,7 @@ export default class Chart extends React.Component {
   }
 
   render() {
-    const {wrapper, children, width, height, margins, tickMargins, datasets, xAxisLabel, yAxisLabel, labelOffsets} = this.props;
+    const {wrapper, children, width, height, margins, tickMargins, datasets, xAxisLabel, yAxisLabel, axisLabelOffsets} = this.props;
 
     return (
       <Stage ref={(stage) => this.canvas.stage = stage}
@@ -528,8 +562,8 @@ export default class Chart extends React.Component {
                 width={width} height={margins[2]}/>
           {
             xAxisLabel && <Text text={`${xAxisLabel} →`} x={this.trimDims[0] - margins[1] / 2}
-                                offsetX={labelOffsets.x[0]}
-                                offsetY={labelOffsets.x[1]}
+                                offsetX={axisLabelOffsets.x[0]}
+                                offsetY={axisLabelOffsets.x[1]}
                                 y={this.trimDims[1] / 2 + 5} {...config.axisLabel}/>
           }
           <Line
@@ -552,8 +586,8 @@ export default class Chart extends React.Component {
           }
           {
             yAxisLabel && <Text text={`${yAxisLabel} ↑`} x={this.trimDims[0] / 2 - margins[3] - 5}
-                                offsetX={this.xScale(0) + labelOffsets.y[0]}
-                                offsetY={labelOffsets.y[1]}
+                                offsetX={this.xScale(0) + axisLabelOffsets.y[0]}
+                                offsetY={axisLabelOffsets.y[1]}
                                 y={margins[0] / 2} {...config.axisLabel}/>
           }
           <Line

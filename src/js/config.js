@@ -9,6 +9,11 @@ module.exports = {
     offsetX: 10,
     align: "center"
   },
+  equationText: {
+    fill: "#999999",
+    fontSize: 13,
+    align: "center"
+  },
   axisTickLine: {
     stroke: "#292b2c",
     strokeWidth: 1,
@@ -94,16 +99,20 @@ module.exports = {
   interpolationZOHSignal: {
     line: {
       stroke: "#B8D725",
-      lineWidth: 5,
+      strokeWidth: 4,
       lineJoin: "round"
     }
   },
   interpolationFOHSignal: {
     line: {
       stroke: "#df4b26",
-      lineWidth: 5,
+      strokeWidth: 4,
       lineJoin: "round"
     }
+  },
+  interpolationCursor: {
+    radius: 5,
+    fill: "white"
   },
   convolutionKernelChart: {
     line: {
