@@ -194,7 +194,7 @@ export default class Convolution extends React.Component {
   }
 
   computeConvolution() {
-    this.result = ConvolutionEngine.convolution(this.inputSignal.values(), this.kernelSignal.values());
+    this.result = ConvolutionEngine.convolution(this.inputSignal.values(null, false, true), this.kernelSignal.values());
     // Convolution returns samples going from 0 time, we have to set time offset here
     const xMin = this.inputSignal.xDomain()[0],
       // Maximum y value of the convolution result

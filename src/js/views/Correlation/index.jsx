@@ -7,7 +7,7 @@ import {
 import styles from "./correlation.scss";
 const Decimal = require('decimal.js-light');
 import {Rect, Text} from "react-konva";
-import CorrelationEngine from "../../utils/CorrelationEngine";
+import ConvolutionEngine from "../../utils/ConvolutionEngine";
 import * as Presets from "../../partials/SignalPresets";
 import {Chart, Scroller} from "../../components";
 import {max, min, extent} from "d3-array";
@@ -22,49 +22,45 @@ export default class Correlation extends React.Component {
     this.state = {
       dropdowns: {
         samplingRate: false,
-        noisePerformance: false,
-        inputSignals: false
+        inputSignals: false,
+        kernelSignals: false
       },
-      samplingRate: 1, // Sampling frequency in MHz
-      noisePerformance: 1 // Noise performance of the received signal
+      samplingRate: 1 // Sampling frequency in Hz
     };
 
     // Slider progress
-    this.progress = 50;
-    // Correlation results
+    this.progress = 0;
+    // Convolution result
     this.result = [];
-    this.outputAmplitude = [-1, 1];
+    this.outputChartXDomain = [-5, 15];
+    this.outputChartYDomain = [-1, 1];
 
     // Signals
-    this.draggableOffset = 50; // Offset of the draggable signal
-    this.timeDomain = [0, 10]; // Time domain for signals
-    this.draggableTimeDomain = [0, 100]; // Time domain for dragging
-    this.lag = this.getRandomLag(); // Lag of the received signal
+    this.timeDomain = [-5, 5]; // Time domain for signals
+    this.draggableTimeDomain = [-10, 10]; // Time domain for dragging
     this.draggableStep = 1;
-    this.inputSignal = Presets.getSinSignal(this.timeDomain[0], this.timeDomain[1]); // Input signal
-    this.inputSignalSampled = new Signal(); // Discrete input signal
-    this.receivedSignal = new Signal(); // Received signal
-    this.draggableSignal = new Signal(); // Draggable signal for searching in cross correlation function
-    this.draggableSignal.timeOffset(this.draggableOffset - this.lag);
+    this.kernelSignal = new Signal(); // Kernel discrete signal
+    this.inputSignal = new Signal(); // Input discrete signal
+    this.stepSignal = new Signal(); // Convolution step
+    this.signalOutput = new Signal(); // Output (result) signal
     // Reset signals will set initial values
     this.resetSignals(true);
-    this.computeCorrelation();
 
     // Refs
-    this.samplingRate = null; // Sampling frequency input ref
-    this.noisePerformance = null; // Noise performance input ref
+    this.samplingRate = null; // Sampling frequency ref
     this.wrappers = {}; // Object of wrappers (element refs) for charts
     this.dims = {}; // Object of dimensions for charts
-    this.outputChart = null; // Cross correlation function (output) Chart
-    this.inputChart = null; // Input Chart
-    this.receivedChart = null; // Step Chart
+    this.draggableChart = null; // Draggable Chart
+    this.outputChart = null; // Output Chart
+    this.stepChart = null; // Step Chart
+    this.draggableChartOffsetLabel = null; // Draggable chart label text
     this.outputChartOffsetLabel = null; // Output chart label text
-    this.outputChartCorrelationResultLabel = null; // Correlation result label text
+    this.stepChartLabel = null; // Step chart label
   }
 
   componentDidMount() {
-    // Delayed mount of konva components
     setTimeout(() => {
+      // Delayed mount of konva components
       this.rescaleDimensions();
       // Listen for window resizes
       window.addEventListener("resize", () => this.rescaleDimensions());
@@ -73,21 +69,6 @@ export default class Correlation extends React.Component {
 
   componentWillUnmount() {
     window.removeEventListener("resize", () => this.forceUpdate());
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    // Sampling rate changed
-    if (prevState.samplingRate !== this.state.samplingRate || prevState.noisePerformance !== this.state.noisePerformance) {
-      this.resetSignals();
-      this.moveScroller(this.draggableOffset);
-      // Input samples changed -> recompute correlation
-      this.computeCorrelation();
-      this.inputChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values());
-      this.receivedChart.datasetPoints("receivedSignal", this.receivedSignal.values());
-      this.outputChart.datasetPoints("receivedSignal", this.receivedSignal.values());
-      // We want default offset here
-      this.outputChart.datasetPoints("draggableSignal", this.draggableSignal.values(null, true));
-    }
   }
 
   toggleDropdown(dropdown) {
@@ -118,82 +99,51 @@ export default class Correlation extends React.Component {
 
   /**
    * Reset signals to initial values
-   * @param resetInputs boolean whether or not to reset input (drawable) signal into its default
+   * @param resetInputs boolean whether or not to reset input (drawable) signal. Default false
    */
   resetSignals(resetInputs = false) {
 
     if (resetInputs) {
       // Regenerate values to initial
-      this.inputSignal = Presets.getSinSignal(this.timeDomain[0], this.timeDomain[1]);
+      this.kernelSignal.generateValues(this.timeDomain[0], this.timeDomain[1], this.state.samplingRate);
+      this.inputSignal.generateValues(this.timeDomain[0], this.timeDomain[1], this.state.samplingRate);
     }
-    this.inputSignalSampled.values(Signal.getSamples(this.state.samplingRate, this.inputSignal));
-    this.receiveSignal(this.state.noisePerformance, this.lag);
+
+    this.inputSignal.timeOffset(this.draggableTimeDomain[0]).toFixed(2);
+    this.stepSignal.generateValues(this.timeDomain[0], this.timeDomain[1], this.state.samplingRate);
+    this.signalOutput.generateValues(this.outputChartXDomain[0], this.outputChartXDomain[1], 1);
   }
 
   setInputSignal(signal) {
     this.inputSignal = signal;
     this.resetApplication();
+    this.computeConvolution();
+  }
+
+  setKernelSignal(signal) {
+    this.kernelSignal = signal;
+    this.resetApplication();
+    this.computeConvolution();
   }
 
   /**
    * Resets application to the initial state. Empty result, scroller to zero, draggable chart to initial state
    */
-  resetApplication(state = {}) {
+  resetApplication(state = {}, resetInputs = false) {
     this.setState({...this.state, ...state});
-    this.resetSignals();
-    // Input samples changed -> recompute correlation
-    this.moveScroller(this.progress);
-    this.computeCorrelation();
-    this.inputChart.datasetPoints("inputSignalSampled", this.inputSignalSampled.values());
-    this.receivedChart.datasetPoints("receivedSignal", this.receivedSignal.values());
-    this.outputChart.datasetPoints("receivedSignal", this.receivedSignal.values());
-    this.outputChart.datasetPoints("draggableSignal", this.draggableSignal.values(null, true));
-  }
-
-  getRandomLag() {
-    return Math.floor(Math.random() * ((this.draggableTimeDomain[1] - 10) - (this.draggableTimeDomain[0] + 10)) + this.draggableTimeDomain[0] + 10);
+    this.resetSignals(resetInputs);
+    this.result = [];
+    // Reset draggable chart and scroller
+    this.moveScroller(0);
+    this.draggableChart.datasetPoints("kernelSignal", this.kernelSignal.values());
   }
 
   /**
-   * Will set sampling new sampling rate, rerender sampled signal in chart
+   * Will set new sampling rate, rerender sampled signal in chart
    * @param samplingRate number sampling frequency in Hz
    */
   setSamplingRate(samplingRate) {
-    this.setState({samplingRate: samplingRate});
-  }
-
-  /**
-   * Will set white noise performance
-   * @param performance number How "big" noise should be
-   * @param lag number Delay of the received signal
-   */
-  setNoisePerformance(performance, lag = null) {
-    if (lag !== null) {
-      this.lag = lag;
-    }
-    this.setState({noisePerformance: performance});
-  }
-
-  /**
-   * Simulate receive of the signal. Signal will be enchanced by noise and delayed by lag
-   * @param noisePerformance number intensity of the noise
-   * @param lag number delay in time
-   */
-  receiveSignal(noisePerformance = 1, lag = null) {
-    // Generate noise
-    const noise = CorrelationEngine.generateWhiteNoise(this.draggableTimeDomain[0], this.draggableTimeDomain[1], 1 / noisePerformance, -noisePerformance, noisePerformance),
-      noisifiedInput = CorrelationEngine.noisifySignal(this.inputSignalSampled, noise, noisePerformance, lag);
-
-    this.receivedSignal.values(noisifiedInput.values());
-    if (lag !== null) {
-      this.lag = lag;
-    }
-    // Rescale charts to fit amplitude
-    this.outputAmplitude = extent(this.receivedSignal.values().map(point => point[1]));
-    if (this.receivedChart && this.outputChart) {
-      this.receivedChart.rescale({yDomain: this.outputAmplitude});
-      this.outputChart.rescale({yDomain: this.outputAmplitude});
-    }
+    this.resetApplication({samplingRate: samplingRate})
   }
 
   /**
@@ -202,20 +152,30 @@ export default class Correlation extends React.Component {
    * @param chart Chart class instance we are drawing in
    */
   onChartDraw(signalName, chart) {
-    let min = chart.getCordXValue(chart.lastPointerPosition.x);
-    let max = chart.getCordXValue(chart.pointerPosition.x);
-    // If user drags from right to left, swap values
-    if (min > max) {
-      const tmp = min;
-      min = max;
-      max = tmp;
-    }
-    // Determine which points to set (handles situation when user drags mouse too fast)
-    const pointsToSet = this[signalName].getPointsInRange(min, max);
-    // Set the points
-    pointsToSet.forEach(point => this[signalName].setPoint(point[0], chart.getCordYValue(chart.pointerPosition.y)));
+    /*
+     Beznákovic dívka, jo, tu mám rád. Při myšlence na ni, chce se mi začít smát...a taky řvát, že po tom všem, znovu ji musím psát,
+     */
+    const pointerPos = chart.pointerPosition,
+      placeToSet = findIndexOfNearest(this[signalName].values(), (point => point[0]), chart.getCordXValue(pointerPos.x, 3)),
+      newPoint = this[signalName].setPoint(this[signalName].values()[placeToSet][0], chart.getCordYValue(pointerPos.y, 3));
+    this[signalName].setPoint(newPoint[0], newPoint[1]);
     chart.datasetPoints(signalName, this[signalName].values());
-    this[`${signalName}Sampled`].values(Signal.getSamples(this.state.samplingRate, this[signalName]));
+
+    /* CODE FOR TIME CONTINUOUS SIGNAL
+     let min = chart.getCordXValue(chart.lastPointerPosition.x);
+     let max = chart.getCordXValue(chart.pointerPosition.x);
+     // If user drags from right to left, swap values
+     if (min > max) {
+     const tmp = min;
+     min = max;
+     max = tmp;
+     }
+     // Determine which points to set (handles situation when user drags mouse too fast)
+     const pointsToSet = this[signalName].getPointsInRange(min, max);
+     // Set the points
+     pointsToSet.forEach(point => this[signalName].setPoint(point[0], chart.getCordYValue(chart.pointerPosition.y)));
+     chart.datasetPoints(signalName, this[signalName].values());
+     */
   }
 
   /**
@@ -224,12 +184,28 @@ export default class Correlation extends React.Component {
    * @param chart Chart class instance we are clicking in
    */
   onDrawableChartClick(signalName, chart) {
+    // Input has changed -> reset application to beginning
+    this.resetApplication();
     const pointerPos = chart.pointerPosition,
-      newPoint = this[signalName].setPoint(chart.getCordXValue(pointerPos.x, 3), chart.getCordYValue(pointerPos.y, 3));
+      placeToSet = findIndexOfNearest(this[signalName].values(), (point => point[0]), chart.getCordXValue(pointerPos.x, 3)),
+      newPoint = this[signalName].setPoint(this[signalName].values()[placeToSet][0], chart.getCordYValue(pointerPos.y, 3));
     this[signalName].setPoint(newPoint[0], newPoint[1]);
-    // Make discrete signal
-    this[`${signalName}Sampled`].values(Signal.getSamples(this.state.samplingRate, this[signalName]));
     chart.datasetPoints(signalName, this[signalName].values());
+  }
+
+  computeConvolution() {
+    this.result = ConvolutionEngine.convolution(this.inputSignal.values(), this.kernelSignal.values());
+    // Convolution returns samples going from 0 time, we have to set time offset here
+    const xMin = this.inputSignal.xDomain()[0],
+      // Maximum y value of the convolution result
+      resultMaxY = extent(this.result.map(point => point[1]));
+    this.result.map((sample, i) => {
+      sample[0] = (new Decimal(xMin + i * this.draggableStep)).toFixed(2);
+    });
+    // Rescale output chart for new result values
+    this.outputChartXDomain = [this.result[0][0], this.result[this.result.length - 1][0]];
+    this.outputChartYDomain = (resultMaxY[0] !== resultMaxY[1]) ? resultMaxY : [-1, 1];
+    this.outputChart.rescale({yDomain: this.outputChartYDomain, xDomain: this.outputChartXDomain});
   }
 
   /**
@@ -238,35 +214,9 @@ export default class Correlation extends React.Component {
    * @param chart Chart class instance we are clicking in
    */
   onDrawableChartMouseUp(signalName, chart) {
-    this.resetApplication();
-  }
-
-  computeCorrelation() {
-    // ensure correlation works with arrays of same length
-    let idx = 0;
-    const input = [],
-      samples = this.inputSignalSampled.values(null, this.lag);
-    this.receivedSignal.values().forEach((point, i) => {
-      input[i] = [point[0], 0];
-      if (samples[idx] && point[0] === samples[idx][0]) {
-        input[i][1] = point[1];
-        idx++;
-      }
-    });
-    // Adjust amplitude
-    samples.map(point => point[1] *= this.state.noisePerformance);
-    this.draggableSignal.values(samples);
-    // Add padding to make draggable signal look pretty
-    this.draggableSignal.setPoint((Number(samples[0][0]) - 0.01), 0);
-    this.draggableSignal.setPoint((Number(samples[samples.length - 1][0]) + 0.01), 0);
-    this.draggableSignal.setPoint(-100, 0);
-    this.draggableSignal.setPoint(200, 0);
-    // Compute correlation
-    this.result = CorrelationEngine.crossCorrelation(input, this.receivedSignal.values());
-  }
-
-  getCorrelationResult(offsetX) {
-    return this.result.find(shift => shift[0] === this.lag - Number(offsetX))[1];
+    // Compute convolution on mouse up, save values as array
+    this.computeConvolution();
+    this.forceUpdate();
   }
 
   /**
@@ -276,20 +226,32 @@ export default class Correlation extends React.Component {
   moveScroller(position) {
     this.progress = position;
     // Move only by x range steps
-    const offsetX = new Decimal(this.outputChart.xRange[findIndexOfNearest(this.outputChart.xRange, (x) => x, (position * (this.draggableTimeDomain[1] - this.draggableTimeDomain[0]) / 100) + this.draggableTimeDomain[0])]),
-      correlationFunc = this.getCorrelationResult(offsetX); // Correlation function result
-    this.draggableOffset = offsetX;
-    // Set time offset
-    this.draggableSignal.timeOffset(offsetX.minus(this.lag).toFixed(2));
+    const offsetX = new Decimal(this.draggableChart.xRange[findIndexOfNearest(this.draggableChart.xRange, (x) => x, (position * (this.draggableTimeDomain[1] - this.draggableTimeDomain[0]) / 100) + this.draggableTimeDomain[0])]);
+    // Set time offset of the signal
+    this.inputSignal.timeOffset(offsetX.toFixed(2));
     // Update draggable chart
-    this.outputChart.datasetPoints("draggableSignal", this.draggableSignal.values(null, true));
-    this.outputChartOffsetLabel.setAttr("text", `Zpoždění τ = ${offsetX.toFixed(2)}[ms]`);
-    this.outputChartCorrelationResultLabel.setAttr("text", `Rxy(${Number(offsetX).toFixed(2)}) = ${correlationFunc.toFixed(2)}`);
+    this.draggableChart.datasetPoints("inputSignal", this.inputSignal.values(null, true));
+    // Convolution result up to this scroller position progress
+    const convResult = this.result.slice(0, this.result.findIndex((point => point[0] === offsetX.plus(this.inputSignal.xDomain()[1]).toFixed(2))) + 1),
+      lastPoint = convResult.length > 0 ? convResult[convResult.length - 1][1] : 0;
+    this.draggableChartOffsetLabel.setAttr("text", `Zpoždění = ${offsetX.toFixed(2)}`);
+    this.draggableChart.refreshLayer("labels");
+    // Handle step signal
+    this.stepChartLabel.setAttr("text", `Příspěvek h[n]x[n + ${offsetX.toFixed(2)}]`);
+    this.stepSignal.values(ConvolutionEngine.getConvolutionStep(this.inputSignal.values(null, true), this.kernelSignal.values()));
+    this.stepChart.datasetPoints("stepSignal", this.stepSignal.values());
+    this.stepChart.refreshLayer("labels");
+    // Set output signal values as portion of convolution result based on scroller progress
+    this.signalOutput.values(convResult);
+    this.outputChart.datasetPoints("outputSignal", this.signalOutput.values());
+    this.outputChartOffsetLabel.setAttr("text", `Křížová korelační funkce γₓₕ[${offsetX.toFixed(2)}] = h[n]x[n + τ] = h[n] x[n + ${offsetX.toFixed(2)}] = ${lastPoint.toFixed(2)}`);
     this.outputChart.refreshLayer("labels");
   }
 
   render() {
-    const {dropdowns, samplingRate, noisePerformance} = this.state;
+    const {dropdowns, samplingRate} = this.state,
+      offsetX = Number(this.inputSignal.timeOffset()),
+      samplingPeriod = new Decimal(1 / samplingRate);
 
     return (
       <div className={styles.container}>
@@ -304,168 +266,220 @@ export default class Correlation extends React.Component {
                                   isOpen={dropdowns.inputSignals}
                                   toggle={this.toggleDropdown.bind(this, "inputSignals")}>
               <DropdownToggle nav caret>
-                Vstupní signál
+                Vstupní signál h[n]
               </DropdownToggle>
               <DropdownMenu>
                 <DropdownItem
-                  onClick={this.setInputSignal.bind(this, Presets.getSinSignal(this.timeDomain[0], this.timeDomain[1]))}>
-                  Sinusový
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoint(0, 1);
+                    this.setInputSignal(signal);
+                  }}>
+                  Diracův impuls
                 </DropdownItem>
                 <DropdownItem
-                  onClick={this.setInputSignal.bind(this, Presets.getRectSignal(this.timeDomain[0], this.timeDomain[1], 1))}>
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoints([[-1, 1,], [0, 1], [1, 1]]);
+                    this.setInputSignal(signal);
+                  }}>
                   Obdélníkový
                 </DropdownItem>
                 <DropdownItem
-                  onClick={this.setInputSignal.bind(this, Presets.getSawtoothSignal(this.timeDomain[0], this.timeDomain[1], 1, 4))}>
-                  Pilovitý
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoints([[-3, 0.25,], [-2, 0.5], [-1, 0.75], [0, 1], [1, 0.75], [2, 0.5], [3, 0.25]]);
+                    this.setInputSignal(signal);
+                  }}>
+                  Trojuhelníkový
                 </DropdownItem>
                 <DropdownItem
-                  onClick={this.setInputSignal.bind(this, Presets.getTriangleSignal(this.timeDomain[0], this.timeDomain[1]))}>
-                  Trojuhelník
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoints([[-5, 1], [-4, 0.9], [-3, 0.8,], [-2, 0.7], [-1, 0.6], [0, 0.5], [1, 0.4], [2, 0.3], [3, 0.2], [4, 0.1]]);
+                    this.setInputSignal(signal);
+                  }}>
+                  Exponenciála dolů
+                </DropdownItem>
+                <DropdownItem
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoints([[-4, 0.1], [-3, 0.2,], [-2, 0.3], [-1, 0.4], [0, 0.5], [1, 0.6], [2, 0.7], [3, 0.8], [4, 0.9], [5, 1]]);
+                    this.setInputSignal(signal);
+                  }}>
+                  Exponenciála nahoru
                 </DropdownItem>
               </DropdownMenu>
             </UncontrolledDropdown>
 
             <UncontrolledDropdown nav inNavbar
                                   className="d-inline-flex align-items-center px-3"
-                                  isOpen={dropdowns.samplingRate}
-                                  toggle={this.toggleDropdown.bind(this, "samplingRate")}>
+                                  isOpen={dropdowns.kernelSignals}
+                                  toggle={this.toggleDropdown.bind(this, "kernelSignals")}>
               <DropdownToggle nav caret>
-                Vzorkovací frekvence
+                Vstupní signál x[n]
               </DropdownToggle>
-              <DropdownMenu className="px-3">
-                <FormGroup>
-                  <Label for="exampleText">Vzorkovací frekvence [kHz]</Label>
-                  <Input placeholder=""
-                         type="number"
-                         innerRef={(input) => this.samplingRate = input}
-                         defaultValue={samplingRate}
-                         onChange={(event) => {
-                           if (event.target.value !== "" && event.target.value > 0) {
-                             this.setSamplingRate(Number(event.target.value))
-                           }
-                         }}
-                  />
-                </FormGroup>
+              <DropdownMenu>
+                <DropdownItem
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoint(0, 1);
+                    this.setKernelSignal(signal);
+                  }}>
+                  Diracův impuls
+                </DropdownItem>
+                <DropdownItem
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoints([[-1, 1,], [0, 1], [1, 1]]);
+                    this.setKernelSignal(signal);
+                  }}>
+                  Obdélníkový
+                </DropdownItem>
+                <DropdownItem
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoints([[-3, 0.25,], [-2, 0.5], [-1, 0.75], [0, 1], [1, 0.75], [2, 0.5], [3, 0.25]]);
+                    this.setKernelSignal(signal);
+                  }}>
+                  Trojuhelníkový
+                </DropdownItem>
+                <DropdownItem
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoints([[-5, 1], [-4, 0.9], [-3, 0.8,], [-2, 0.7], [-1, 0.6], [0, 0.5], [1, 0.4], [2, 0.3], [3, 0.2], [4, 0.1]]);
+                    this.setKernelSignal(signal);
+                  }}>
+                  Exponenciála dolů
+                </DropdownItem>
+                <DropdownItem
+                  onClick={() => {
+                    const signal = Presets.getBlankSignal(this.timeDomain[0], this.timeDomain[1], 1);
+                    signal.setPoints([[-4, 0.1], [-3, 0.2,], [-2, 0.3], [-1, 0.4], [0, 0.5], [1, 0.6], [2, 0.7], [3, 0.8], [4, 0.9], [5, 1]]);
+                    this.setKernelSignal(signal);
+                  }}>
+                  Exponenciála nahoru
+                </DropdownItem>
               </DropdownMenu>
             </UncontrolledDropdown>
 
             <NavItem className="d-inline-flex align-items-center px-3">
-              <span className="pr-3">f<sub>vz</sub> = {(samplingRate).toFixed(2)}kHz</span>
-              <span className="pr-3">T<sub>vz</sub> = {(1 / samplingRate).toFixed(2)}ms</span>
-            </NavItem>
-
-            <UncontrolledDropdown nav inNavbar
-                                  className="d-inline-flex align-items-center px-3"
-                                  isOpen={dropdowns.noisePerformance}
-                                  toggle={this.toggleDropdown.bind(this, "noisePerformance")}>
-              <DropdownToggle nav caret>
-                Výkon šumu
-              </DropdownToggle>
-              <DropdownMenu className="px-3">
-                <FormGroup>
-                  <Label for="exampleText">Výkon šumu [-]</Label>
-                  <Input placeholder=""
-                         type="number"
-                         innerRef={(input) => this.noisePerformance = input}
-                         defaultValue={noisePerformance}
-                         onChange={(event) => {
-                           if (event.target.value !== "" && event.target.value > 0) {
-                             this.setNoisePerformance(Number(event.target.value), this.getRandomLag())
-                           }
-                         }}
-                  />
-                </FormGroup>
-              </DropdownMenu>
-            </UncontrolledDropdown>
-
-            <NavItem className="d-inline-flex align-items-center px-3">
-              <span className="pr-3">Šum: {noisePerformance.toFixed(2)}</span>
-            </NavItem>
-
-            <NavItem className="d-inline-flex align-items-center px-3">
-              <NavLink href="#" className="nav-link pr-3" onClick={() => {
-                this.lag = this.getRandomLag();
-                this.resetApplication();
-              }}>Znáhodni šum</NavLink>
+              <NavLink href="#" className="nav-link pr-3"
+                       onClick={this.resetApplication.bind(this, {}, true)}>Vyčisti</NavLink>
             </NavItem>
           </Nav>
         </Navbar>
 
         <div className={`row h-100 ${styles.chartRow}`}>
           <div id="input-chart-wrapper" ref={(elem) => this.wrappers.inputChart = elem}
-               className={`col-12 ${styles.chartWrapper}`}>
+               className={`col-4 ${styles.chartWrapper}`}>
             {this.wrappers.inputChart && <Chart ref={(chart) => this.inputChart = chart}
                                                 wrapper={this.wrappers.inputChart}
                                                 width={this.dims.inputChart ? this.dims.inputChart[0] : 0}
                                                 height={this.dims.inputChart ? this.dims.inputChart[1] : 0}
-                                                xAxisLabel={"t [ms]"}
-                                                axisLabelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                xAxisLabel={"n"}
+                                                yAxisLabel={"h[n]"}
                                                 labels={{
                                                   x: 20,
                                                   y: 0,
                                                   width: 50,
                                                   height: 20,
                                                   content: <Text
-                                                    text="Vyslaný signál x(t)" {...config.chartLabelText} />
+                                                    text="Vstupní signál h[n]" {...config.chartLabelText} />
                                                 }}
+                                                xStep={1}
                                                 xDomain={this.timeDomain}
                                                 yDomain={[-1, 1]}
                                                 datasets={{
                                                   inputSignal: {
                                                     data: this.inputSignal.values(),
-                                                    config: config.correlationInputChart.line
-                                                  },
-                                                  inputSignalSampled: {
-                                                    data: this.inputSignalSampled.values(),
                                                     config: {
-                                                      ...config.correlationInputChart.rect,
-                                                      width: 1
+                                                      ...config.convolutionInputChart.rect
                                                     },
                                                     element: "bar"
                                                   }
                                                 }}
                                                 onContentMousedrag={(chart) => {
                                                   this.onChartDraw("inputSignal", chart);
-                                                  chart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values());
+                                                  this.draggableChart.datasetPoints(`inputSignal`, this.inputSignal.values(null, true, true));
                                                 }}
                                                 onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputSignal")}
                                                 onContentMousedown={(chart) => {
                                                   this.onDrawableChartClick("inputSignal", chart);
-                                                  chart.datasetPoints(`inputSignalSampled`, this.inputSignalSampled.values());
+                                                  this.draggableChart.datasetPoints(`inputSignal`, this.inputSignal.values(null, true, true));
                                                 }}/>
             }
           </div>
-        </div>
 
-        <div className={`row h-100 ${styles.chartRow}`}>
-          <div id="received-chart-wrapper" ref={(elem) => this.wrappers.receivedChart = elem}
-               className={`col-12 ${styles.chartWrapper}`}>
-            {this.wrappers.receivedChart && <Chart ref={(chart) => this.receivedChart = chart}
-                                                   wrapper={this.wrappers.receivedChart}
-                                                   width={this.dims.receivedChart ? this.dims.receivedChart[0] : 0}
-                                                   height={this.dims.receivedChart ? this.dims.receivedChart[1] : 0}
-                                                   xAxisLabel={"t [ms]"}
-                                                   clickSafe={true}
-                                                   xTicksCount={10}
-                                                   xStep={0.01}
-                                                   axisLabelOffsets={{x: [20, 0], y: [0, 0]}}
-                                                   labels={{
-                                                     x: 20,
-                                                     y: 0,
-                                                     width: 50,
-                                                     height: 20,
-                                                     content: <Text
-                                                       text="Přijatý signál y(t)" {...config.chartLabelText} />
-                                                   }}
-                                                   xDomain={this.draggableTimeDomain}
-                                                   yDomain={this.outputAmplitude}
-                                                   datasets={{
-                                                     receivedSignal: {
-                                                       data: this.receivedSignal.values(),
-                                                       config: config.correlationReceivedChart.line
-                                                     }
-                                                   }}/>
+          <div id="kernel-chart-wrapper" ref={(elem) => this.wrappers.kernelChart = elem}
+               className={`col-4 ${styles.chartWrapper}`}>
+            {this.wrappers.kernelChart && <Chart wrapper={this.wrappers.kernelChart}
+                                                 width={this.dims.kernelChart ? this.dims.kernelChart[0] : 0}
+                                                 height={this.dims.kernelChart ? this.dims.kernelChart[1] : 0}
+                                                 xAxisLabel={"n"}
+                                                 yAxisLabel={"x[n]"}
+                                                 labels={{
+                                                   x: 20,
+                                                   y: 0,
+                                                   width: 50,
+                                                   height: 20,
+                                                   content: <Text
+                                                     text="Vstupní signál x[n]" {...config.chartLabelText} />
+                                                 }}
+                                                 xStep={1}
+                                                 xDomain={this.timeDomain}
+                                                 yDomain={[-1, 1]}
+                                                 datasets={{
+                                                   kernelSignal: {
+                                                     data: this.kernelSignal.values(),
+                                                     config: {
+                                                       ...config.convolutionKernelChart.rect
+                                                     },
+                                                     element: "bar"
+                                                   }
+                                                 }}
+                                                 onContentMousedrag={(chart) => {
+                                                   this.onChartDraw("kernelSignal", chart);
+                                                   this.draggableChart.datasetPoints(`kernelSignal`, this.kernelSignal.values(null, true));
+                                                 }}
+                                                 onContentMouseup={this.onDrawableChartMouseUp.bind(this, "kernelSignal")}
+                                                 onContentMousedown={(chart) => {
+                                                   this.onDrawableChartClick("kernelSignal", chart);
+                                                   this.draggableChart.datasetPoints(`kernelSignal`, this.kernelSignal.values(null, true));
+                                                 }}/>
+            }
+          </div>
+
+          <div id="step-chart-wrapper" ref={(elem) => this.wrappers.stepChart = elem}
+               className={`col-4 ${styles.chartWrapper}`}>
+            {this.wrappers.stepChart && <Chart ref={(chart) => this.stepChart = chart}
+                                               wrapper={this.wrappers.stepChart}
+                                               width={this.dims.stepChart ? this.dims.stepChart[0] : 0}
+                                               height={this.dims.stepChart ? this.dims.stepChart[1] : 0}
+                                               xAxisLabel={"n"}
+                                               axisLabelOffsets={{x: [20, 0], y: [0, 0]}}
+                                               clickSafe={true}
+                                               xStep={1}
+                                               xCrosshairDisabled={true}
+                                               labels={{
+                                                 x: 20,
+                                                 y: 0,
+                                                 width: 50,
+                                                 height: 20,
+                                                 content: <Text ref={(text) => this.stepChartLabel = text}
+                                                                text={`Příspěvek h[n]x[n + ${offsetX.toFixed(2)}]`} {...config.chartLabelText} />
+                                               }}
+                                               xDomain={this.timeDomain}
+                                               yDomain={[-1, 1]}
+                                               datasets={{
+                                                 stepSignal: {
+                                                   data: this.stepSignal.values(),
+                                                   config: {
+                                                     ...config.convolutionStepChart.rect
+                                                   },
+                                                   element: "bar"
+                                                 }
+                                               }}/>
             }
           </div>
         </div>
@@ -477,59 +491,88 @@ export default class Correlation extends React.Component {
                                                  wrapper={this.wrappers.outputChart}
                                                  width={this.dims.outputChart ? this.dims.outputChart[0] : 0}
                                                  height={this.dims.outputChart ? this.dims.outputChart[1] : 0}
-                                                 xAxisLabel={"τ [ms]"}
-                                                 clickSafe={true}
-                                                 axisLabelOffsets={{x: [20, 0], y: [0, 0]}}
-                                                 labels={[{
+                                                 xAxisLabel={"n"}
+                                                 yAxisLabel={"y[n]"}
+                                                 axisLabelOffsets={{
+                                                   x: [20, 0],
+                                                   y: [0, 0]
+                                                 }}
+                                                 xTicksCount={21}
+                                                 labels={{
                                                    x: 20,
                                                    y: 0,
                                                    width: 50,
                                                    height: 20,
-                                                   content: <Text
-                                                     text="Křížová korelační funkce Rxy(τ)" {...config.chartLabelText} />
-                                                 }, {
-                                                   x: 200,
-                                                   y: 0,
-                                                   width: 50,
-                                                   height: 20,
                                                    content: <Text ref={(text => this.outputChartOffsetLabel = text)}
-                                                                  text={`Zpoždění τ = ${Number(this.draggableOffset).toFixed(2)}[ms]`} {...config.chartLabelText} />
-                                                 },
-                                                   {
-                                                     x: 350,
-                                                     y: 0,
-                                                     width: 50,
-                                                     height: 20,
-                                                     content: <Text
-                                                       ref={(text => this.outputChartCorrelationResultLabel = text)}
-                                                       text={`Rxy(${Number(this.draggableOffset).toFixed(2)}) = ${this.getCorrelationResult(this.draggableOffset).toFixed(2)}`} {...config.chartLabelText} />
-                                                   }]}
-                                                 xDomain={this.draggableTimeDomain}
-                                                 yDomain={this.outputAmplitude}
-                                                 xStep={1}
+                                                                  text={`Křížová korelační funkce γₓₕ[${offsetX.toFixed(2)}] = h[n]x[n + τ] = h[n] x[n + ${offsetX.toFixed(2)}] = 0.00`} {...config.chartLabelText} />
+                                                 }}
+                                                 clickSafe={true}
+                                                 xDomain={this.outputChartXDomain}
+                                                 yDomain={this.outputChartYDomain}
+                                                 xStep={this.draggableStep}
                                                  datasets={{
-                                                   receivedSignal: {
-                                                     data: this.receivedSignal.values(),
-                                                     config: config.correlationOutputChart.receivedSignal.line
-                                                   },
-                                                   draggableSignal: {
-                                                     data: this.draggableSignal.values(null, true),
-                                                     config: config.correlationOutputChart.inputSignal.line
+                                                   outputSignal: {
+                                                     data: this.signalOutput.values(),
+                                                     config: {
+                                                       ...config.convolutionOutputChart.rect
+                                                     },
+                                                     element: "bar"
                                                    }
                                                  }}/>
             }
           </div>
         </div>
-
-        <div className={`row ${styles.chartRow}`} style={{height: 100}}>
+        <div className={`row h-100 ${styles.chartRow}`}>
+          <div id="draggable-chart-wrapper" ref={(elem) => this.wrappers.draggableChart = elem}
+               className={`col-12 ${styles.chartWrapper}`}>
+            {this.wrappers.draggableChart && <Chart ref={(chart) => this.draggableChart = chart}
+                                                    wrapper={this.wrappers.draggableChart}
+                                                    width={this.dims.draggableChart ? this.dims.draggableChart[0] : 0}
+                                                    height={this.dims.draggableChart ? this.dims.draggableChart[1] : 0}
+                                                    xAxisLabel={"τ"}
+                                                    axisLabelOffsets={{x: [20, 0], y: [0, 0]}}
+                                                    xTicksCount={20}
+                                                    labels={{
+                                                      x: 20,
+                                                      y: 0,
+                                                      width: 50,
+                                                      height: 20,
+                                                      content: <Text
+                                                        ref={(text => this.draggableChartOffsetLabel = text)}
+                                                        text={`Zpoždění τ = ${offsetX.toFixed(2)}`} {...config.chartLabelText} />
+                                                    }}
+                                                    clickSafe={true}
+                                                    xStep={this.draggableStep}
+                                                    xDomain={this.draggableTimeDomain}
+                                                    yDomain={[-1, 1]}
+                                                    datasets={{
+                                                      inputSignal: {
+                                                        data: this.inputSignal.values(null, true),
+                                                        config: {
+                                                          ...config.convolutionInputChart.rect
+                                                        },
+                                                        element: "bar"
+                                                      },
+                                                      kernelSignal: {
+                                                        data: this.kernelSignal.values(),
+                                                        config: {
+                                                          ...config.convolutionKernelChart.rect
+                                                        },
+                                                        element: "bar"
+                                                      },
+                                                    }}/>
+            }
+          </div>
+        </div>
+        <div className={`row ${styles.chartRow}`} style={{height: 150}}>
           <div className={`col-12 ${styles.chartWrapper}`}>
-            {this.wrappers.outputChart &&
+            {this.wrappers.draggableChart &&
             <Scroller
-              progress={Number(this.progress)}
+              progress={this.progress}
               onScroll={this.moveScroller.bind(this)}
               precision={3}
-              width={this.dims.outputChart ? this.dims.outputChart[0] : 0}
-              height={50}/>}
+              width={this.dims.draggableChart ? this.dims.draggableChart[0] : 0}
+              height={150}/>}
           </div>
         </div>
       </div>
