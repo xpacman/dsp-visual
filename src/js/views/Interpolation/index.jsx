@@ -19,7 +19,8 @@ const initialState = {
     originalSignal: true,
     originalSampled: true,
     zeroOrderHold: false,
-    firstOrderHold: false
+    firstOrderHold: false,
+    newton: false
   }
 };
 
@@ -179,16 +180,22 @@ export default class Interpolation extends React.Component {
     const samplingPeriod = 1 / this.state.samplingRate;
 
     switch (chosenInterpolation) {
+      case "newton":
+        interpolation = InterpolationEngine.newtonInterpolation(this.originalSampled.values(), this.crosshairTime)[0][1];
+        this.equationLabel && this.equationLabel.setAttr("text", "Newtonův interpolační polynom");
+        this.equationText && this.equationText.setAttr("text", `Rekonstruovaný xᵣ(${this.crosshairTime}) = Pₙ(${this.crosshairTime} = ${interpolation.toFixed(3)}`);
+        this.reconstructionFunctionText && this.reconstructionFunctionText.setAttr("text", `Pₙ(t) = ${InterpolationEngine.getNewtonPolyEquation(this.originalSampled.values())}`);
+        break;
       case "zeroOrderHold":
         interpolation = InterpolationEngine.zeroOrderHoldInterpolation(this.originalSampled.values(), samplingPeriod.toFixed(3), this.crosshairTime);
         this.equationLabel && this.equationLabel.setAttr("text", "Schodová interpolace (Zero order hold)");
-        this.equationText && this.equationText.setAttr("text", `Rekonstruovaný xᵣ(${this.crosshairTime}) = ∑ Vzorkovaný xₛ[n] h(${this.crosshairTime} - n * ${samplingPeriod.toFixed(3)}) = ${interpolation.toFixed(3)}`);
-        this.reconstructionFunctionText && this.reconstructionFunctionText.setAttr("text", "Rekonstrukční funkce h(t) = 1 pro 0 <= |t| <= T, 0 jinak");
+        this.equationText && this.equationText.setAttr("text", `Rekonstruovaný xᵣ(${this.crosshairTime}) = xₛ(t) ∗ h(t) = ∑ xₛ[n] h(${this.crosshairTime} - n * ${samplingPeriod.toFixed(3)}) = ${interpolation.toFixed(3)}`);
+        this.reconstructionFunctionText && this.reconstructionFunctionText.setAttr("text", "Rekonstrukční funkce h(t) = 1 pro 0 <= t <= T, 0 jinak");
         break;
       case "firstOrderHold":
         interpolation = InterpolationEngine.firstOrderHoldInterpolation(this.originalSampled.values(), samplingPeriod.toFixed(3), this.crosshairTime);
         this.equationLabel && this.equationLabel.setAttr("text", "Lineární interpolace (First order hold)");
-        this.equationText && this.equationText.setAttr("text", `Rekonstruovaný xᵣ(${this.crosshairTime}) = ∑ Vzorkovaný xₛ[n] h(${this.crosshairTime} - n * ${samplingPeriod.toFixed(3)}) = ${interpolation.toFixed(3)}`);
+        this.equationText && this.equationText.setAttr("text", `Rekonstruovaný xᵣ(${this.crosshairTime}) = xₛ(t) ∗ h(t) = ∑ xₛ[n] h(${this.crosshairTime} - n * ${samplingPeriod.toFixed(3)}) = ${interpolation.toFixed(3)}`);
         this.reconstructionFunctionText && this.reconstructionFunctionText.setAttr("text", "Rekonstrukční funkce h(t) = 1 - (|t| / T) pro 0 <= |t| <= T, 0 jinak");
         break;
       default:
@@ -310,8 +317,8 @@ export default class Interpolation extends React.Component {
                   <Input checked={display.originalSignal}
                          onChange={() => this.toggleSignal("originalSignal", !display.originalSignal)}
                          type="checkbox"/>{' '}
-                  &nbsp;Původní signál <span className={styles.legendSquare}
-                                             style={{background: config.interpolationOriginalSignal.line.stroke}}/>
+                  &nbsp;Původní signál x(t)&nbsp;<span className={styles.legendSquare}
+                                                       style={{background: config.interpolationOriginalSignal.line.stroke}}/>
                 </Label>
               </FormGroup>
             </NavItem>
@@ -322,8 +329,8 @@ export default class Interpolation extends React.Component {
                   <Input checked={display.originalSampled}
                          onChange={() => this.toggleSignal("originalSampled", !display.originalSampled)}
                          type="checkbox"/>{' '}
-                  &nbsp;Vzorkovaný signál <span className={styles.legendSquare}
-                                                style={{background: config.interpolationSampledSignal.rect.stroke}}/>
+                  &nbsp;Vzorkovaný signál xₛ[n]&nbsp;<span className={styles.legendSquare}
+                                                           style={{background: config.interpolationSampledSignal.rect.stroke}}/>
                 </Label>
               </FormGroup>
             </NavItem>
@@ -344,6 +351,16 @@ export default class Interpolation extends React.Component {
                          display: {firstOrderHold: true},
                          chosenInterpolation: "firstOrderHold"
                        })}>Lineární interpolace&nbsp;
+                <span className={styles.legendSquare}
+                      style={{background: config.interpolationFOHSignal.line.stroke}}/></NavLink>
+            </NavItem>
+
+            <NavItem className="d-inline-flex align-items-center px-3">
+              <NavLink href="#" className="nav-link pr-3"
+                       onClick={this.resetApplication.bind(this, {
+                         display: {newton: true},
+                         chosenInterpolation: "newton"
+                       })}>Newtonova interpolace&nbsp;
                 <span className={styles.legendSquare}
                       style={{background: config.interpolationFOHSignal.line.stroke}}/></NavLink>
             </NavItem>
@@ -397,6 +414,13 @@ export default class Interpolation extends React.Component {
                                                config: {
                                                  ...config.interpolationFOHSignal.line,
                                                  visible: display.firstOrderHold
+                                               }
+                                             },
+                                             newton: {
+                                               data: InterpolationEngine.newtonInterpolation(this.originalSampled.values()),
+                                               config: {
+                                                 ...config.interpolationFOHSignal.line,
+                                                 visible: display.newton
                                                }
                                              }
                                            }}

@@ -22,3 +22,44 @@
   border-bottom: 1px solid $body-border;
   min-height: $navbar-height;
 }
+
+.h90 {
+  height: 90% !important;
+}
+
+.h10 {
+  height: 10% !important;
+}
+
+.inputValuesTable {
+  border-width: 1px;
+  border-top-width: 0;
+  border-style: solid;
+  border-color: #292b2c;
+
+  & tbody th:first-child {
+    color: #333;
+  }
+
+  & thead th:first-child {
+    border-top-width: 0 !important;
+  }
+}
+
+.inputValuesRow {
+  &:hover {
+    .inputValuesRowActions {
+      visibility: visible;
+    }
+  }
+}
+
+.inputValuesRowActions {
+  color: $link-color;
+  cursor: pointer;
+  visibility: hidden;
+
+  &:hover {
+    color: $link-hover-color;
+  }
+}

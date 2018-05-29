@@ -52,6 +52,16 @@ export default class Signal {
   }
 
   /**
+   * Will parse value and returns it as string rounded to decimal precision. Use this when working with every signal value
+   * @param value
+   * @param precision
+   * @return {string}
+   */
+  parseValue(value, precision = 2) {
+    return (new Decimal(parseFloat(value))).toFixed(precision);
+  }
+
+  /**
    * Gets or sets signal values
    * @param values array of arrays [[x0, y0], ...]
    * @param withOffset boolean|number when true, current time offset will be considered, if number, values will be offseted by this value
@@ -85,7 +95,10 @@ export default class Signal {
       // Adjust xDomain of the signal according to new values
       this.xDomain(extent(values.map(point => Number(point[0]))));
     }
-    return this._values = values;
+
+    this._values = [];
+    values.forEach(point => this._values.push([this.parseValue(point[0]), this.parseValue(point[1])]));
+    return this._values;
   }
 
   /**
@@ -129,10 +142,8 @@ export default class Signal {
    * @return array|undefined
    */
   getPoint(x) {
-    if (!isNaN(x)) {
-      x = new Decimal(x);
-      x = x.toFixed(2);
-    }
+    x = this.parseValue(x);
+
     return this._values.find(point => {
       return point[0] === x
     });
@@ -172,10 +183,9 @@ export default class Signal {
    * @return {[*,*]}
    */
   setPoint(x, y) {
-    if (!isNaN(x)) {
-      x = new Decimal(x);
-      x = x.toFixed(2);
-    }
+    x = this.parseValue(x);
+    y = this.parseValue(y);
+
     const point = this.getPoint(x);
     // If were able to get the point
     if (point) {
@@ -198,6 +208,23 @@ export default class Signal {
 
     }
     return [x, y];
+  }
+
+
+  /**
+   * Will remove point specified by x
+   * @param x
+   * @return {*}
+   */
+  removePoint(x) {
+    x = this.parseValue(x);
+
+    const index = this._values.indexOf(this.getPoint(x));
+
+    if (index >= 0) {
+      return this._values.splice(index, 1);
+    }
+    return null;
   }
 
   /**

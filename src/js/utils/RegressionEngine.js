@@ -2,214 +2,153 @@
  * Created by paco on 26.2.18.
  */
 import linear from 'linear-solve';
-
+import Poly from "./Poly";
 
 export default class RegressionEngine {
 
   /**
-   * Returns array of points approximated by line
-   * Equation => y = ax + b
-   * @param inputValues [[x1, y1],...]
-   * @return Array of arrays [[x1, y1], [x2, y2],....]
+   * Will calculate approximation error using least squares
+   * @param inputValues
+   * @param level
+   * @return {number}
    */
-  static getLineApproximation(inputValues) {
-    const coef = this.getCoefficients(inputValues);
-    if (!coef) {
-      return false;
-    }
-    const ret = [];
+  static getPolyLeastSquaresSum(inputValues, level) {
+    const coefs = this.coefs(inputValues, level);
+    let sum = 0,
+      step = 0;
 
-    inputValues.map((point) => ret.push([point[0], coef.line[0] * point[0] + coef.line[1]]));
-    return ret;
-  }
-
-  /**
-   * Returns array of points approximated by parabola
-   * Equation => y = c0 + c1x + c2x^2
-   * @param inputValues [[x1, y1],...]
-   * @return Array of arrays [[x1, y1], [x2, y2],....]
-   */
-  static getParabolaApproximation(inputValues) {
-    const coef = this.getCoefficients(inputValues);
-    if (!coef) {
-      return false;
-    }
-    const ret = [];
-
-    inputValues.map(point =>
-      ret.push([point[0], coef.parabola[0] + coef.parabola[1] * point[0] + coef.parabola[2] * Math.pow(point[0], 2)]));
-    return ret;
-  }
-
-  /**
-   * Returns array of points approximated by exponential
-   * Equation => y = e^a * e^bx
-   * @param inputValues [[x1, y1],...]
-   * @return Array of arrays [[x1, y1], [x2, y2],....]
-   */
-  static getExponentialApproximation(inputValues) {
-    const coef = this.getCoefficients(inputValues);
-    if (!coef) {
-      return false;
-    }
-    const ret = [];
-
-    inputValues.map(point =>
-      ret.push([point[0], Math.exp(coef.exponential[0]) * Math.exp(coef.exponential[1] * point[0])]));
-    return ret;
-  }
-
-  /**
-   * Returns equation for line approximation as string
-   * @param inputValues [[x1, y1],...]
-   * @param decimalPlaces default = 4
-   * @return {string}
-   */
-  static getLineEquation(inputValues, decimalPlaces = 4) {
-    const coef = this.getCoefficients(inputValues);
-    if (!coef) {
-      return false;
-    }
-
-    return `y = ${coef.line[0].toFixed(decimalPlaces)}x + ${coef.line[1].toFixed(decimalPlaces)}`;
-  }
-
-  /**
-   * Returns equation for parabola approximation as string
-   * @param inputValues [[x1, y1],...]
-   * @param decimalPlaces default = 4
-   * @return {string}
-   */
-  static getParabolaEquation(inputValues, decimalPlaces = 4) {
-    const coef = this.getCoefficients(inputValues);
-    if (!coef) {
-      return false;
-    }
-
-    return `y = ${coef.parabola[0].toFixed(decimalPlaces)} + ${coef.parabola[1].toFixed(decimalPlaces)}x +
-     ${coef.parabola[2].toFixed(decimalPlaces)}x^2`;
-  }
-
-  /**
-   * Returns equation for exponential approximation as string
-   * @param inputValues [[x1, y1],...]
-   * @param decimalPlaces default = 4
-   * @return {string}
-   */
-  static getExponentialEquation(inputValues, decimalPlaces = 4) {
-    const coef = this.getCoefficients(inputValues);
-    if (!coef) {
-      return false;
-    }
-
-    return `y = e^${coef.exponential[0].toFixed(decimalPlaces)} * e^${coef.exponential[1].toFixed(decimalPlaces)}x`;
-  }
-
-  /**
-   * Returns sum of least squares areas approximated by line
-   * SUM (yi - (b + a * xi)^2
-   * @param inputValues [[x1, y1],...]
-   * @return float squares areas sum
-   **/
-  static getLineLeastSquares(inputValues) {
-    const coef = this.getCoefficients(inputValues);
-    if (!coef) {
-      return false;
-    }
-    let r2 = 0;
-
-    inputValues.map(point => r2 += Math.pow(point[1] - (coef.line[1] + coef.line[0] * point[0]), 2));
-    return r2;
-  }
-
-  /**
-   * Returns sum of least squares areas approximated by parabola
-   * SUM (yi - a - b * xi - c * xi^2)^2
-   * @param inputValues [[x1, y1],...]
-   * @return float squares areas sum
-   **/
-  static getParabolaLeastSquares(inputValues) {
-    const coef = this.getCoefficients(inputValues);
-    if (!coef) {
-      return false;
-    }
-    let r2 = 0;
-
-    inputValues.map(point =>
-      r2 += Math.pow(point[1] - coef.parabola[0] - coef.parabola[1] * point[0] -
-        coef.parabola[2] * Math.pow(point[0], 2), 2));
-    return r2;
-  }
-
-  /**
-   * Returns sum of least squares areas approximated by exponential
-   * SUM yi(ln(yi) - a - b * xi)^2
-   * @param inputValues [[x1, y1],...]
-   * @return float squares areas sum
-   **/
-  static getExponentialLeastSquares(inputValues) {
-    const coef = this.getCoefficients(inputValues);
-    if (!coef) {
-      return false;
-    }
-    let r2 = 0;
-
-    inputValues.map(point =>
-      r2 += point[1] * (Math.pow(Math.log(point[1]) - coef.exponential[0] - coef.exponential[1] * point[0], 2)));
-    return r2;
-  }
-
-  /**
-   * Calculates coefficients for approximations and returns them as object with key named like approximation and
-   * value as array of coefficients
-   * @param inputValues array of arrays [[x1, y1],...]
-   * @return {*} Object with keys line: array, parabola: array, exponential: array
-   */
-  static getCoefficients(inputValues) {
-    // We always need almost two points for approximation
-    if (inputValues.length < 2) {
-      return false;
-    }
-
-    let n = inputValues.length,
-      xi = 0,
-      yi = 0,
-      xiPow = 0,
-      xiPow_3 = 0,
-      xiPow_4 = 0,
-      xiyi = 0,
-      xiPowYi = 0,
-      xi_lnyi = 0,
-      lnyi = 0;
-
-    inputValues.map((point) => {
-      if (point.length !== 2) {
-        return false;
-      }
-
-      xi += Number(point[0]);
-      xiPow += Math.pow(Number(point[0]), 2);
-      xiPow_3 += Math.pow(Number(point[0]), 3);
-      xiPow_4 += Math.pow(Number(point[0]), 4);
-      yi += Number(point[1]);
-      xiyi += Number(point[1]) * Number(point[0]);
-      xiPowYi += Number(point[1]) * Math.pow(Number(point[0]), 2);
-      xi_lnyi += Number(point[0]) * Math.log(Number(point[1]));
-      lnyi += Math.log(Number(point[1]));
+    inputValues.forEach(point => {
+      step = point[1];
+      coefs.forEach((coef, i) => step -= coef * Math.pow(point[0], i));
+      sum += Math.pow(step, 2);
     });
 
-    // Get coefficients
-    const lineA = (xi * yi - n * xiyi) / (Math.pow(xi, 2) - n * xiPow);
-    const lineB = (xi * xiyi - xiPow * yi) / (Math.pow(xi, 2) - n * xiPow);
-    const parabolaCoef = linear.solve([[n, xi, xiPow], [xi, xiPow, xiPow_3], [xiPow, xiPow_3, xiPow_4]], [yi, xiyi, xiPowYi]);
-    const exponentialB = (n * xi_lnyi - xi * lnyi) / (n * xiPow - Math.pow(xi, 2));
-    const exponentialA = (lnyi * xiPow - xi * xi_lnyi) / (n * xiPow - Math.pow(xi, 2));
+    return sum;
+  }
 
-    return {
-      line: [lineA, lineB],
-      parabola: [parabolaCoef[0], parabolaCoef[1], parabolaCoef[2]],
-      exponential: [exponentialA, exponentialB]
+  /**
+   * Will return string representation of least squares equation
+   * @param inputValues
+   * @param level
+   * @return {string}
+   */
+  static getPolyLeastSquaresEquationString(inputValues, level) {
+    const coefs = this.coefs(inputValues, level);
+    let string = "p²(";
+
+    coefs.forEach((coef, i) => {
+      string += `c${Poly.subScript(i)}`;
+      if (i !== coefs.length - 1) {
+        string += ", "
+      }
+    });
+    string += ") = Σ (yₙ - ";
+    coefs.forEach((coef, i) => {
+      string += `c${Poly.subScript(i)}${i > 0 ? "xₙ" : ""}${i > 1 ? Poly.superScript(i) : ""}`;
+      if (i !== coefs.length - 1) {
+        string += " - "
+      }
+    });
+    string += `)${Poly.superScript(2)}`;
+    return string;
+  }
+
+  /**
+   * Will return instance of Poly which can be solved for any x to get approximation of input values
+   * @param inputValues array of arrays [[x0,y0],...]
+   * @param level number min 1, level polynomial
+   * @return {Poly} instance of polynomial with coefficients
+   */
+  static getApproximationPolynomial(inputValues, level) {
+
+    if (inputValues.length < 2) {
+      throw "At least two points are needed for approximation."
     }
+
+    const coefs = this.coefs(inputValues, level);
+    return new Poly(new Poly(coefs));
+  }
+
+  /**
+   * Will return approximated values as array of arrays
+   * @param inputValues array of arrays [[x0,y0],...]
+   * @param level number min 1, level polynomial
+   * @param toApproximate array or number x to solve polynomial for. By default all input values will be inteprolated
+   * @return {Array} [[x0, y0],...]
+   */
+  static polynomialApproximation(inputValues, level, toApproximate = null) {
+    const poly = this.getApproximationPolynomial(inputValues, level),
+      ret = [];
+    let accessor = (point) => point[0];
+
+    if (toApproximate === null) {
+      toApproximate = inputValues;
+    } else {
+
+      if (!Array.isArray(toApproximate)) {
+        toApproximate = [parseFloat(toApproximate)];
+        accessor = (point) => point;
+      }
+    }
+
+    toApproximate.forEach((point, i) => {
+      ret[i] = [accessor(point), poly.solve(accessor(point))];
+    });
+
+    return ret;
+  }
+
+  /**
+   * Will solve equation matrix to get coefficients for polynomial specified in the level
+   * @param inputValues array of arrays [[x0,y0],...]
+   * @param level number min 1, level polynomial
+   * @return {x} array of coefficients [c_0,...c_level+1]
+   */
+  static coefs(inputValues, level) {
+
+    if (level < 1) {
+      throw "Only polynomials of level 1 or higher are allowed";
+    }
+
+    const leftSums = [], // Partial sums for the left side of the equation matrix [ row[col, col, col,...], row[...],... ]
+      rightSums = []; // Partial sums for the right side of the equation matrix [ row1Result, row2Result,... ]
+
+    // Very first value is (points count)
+    leftSums[0] = [inputValues.length];
+
+    // Build up matrix
+    inputValues.forEach((point) => {
+
+      for (let j = 0; j <= level; j++) {
+        // Left side
+        // Inicialize row
+        if (leftSums[j] === undefined) {
+          leftSums[j] = []
+        }
+
+        for (let i = 0; i <= level; i++) {
+
+          // Skip first column of the first row
+          if (j === 0 && i === 0) {
+            continue;
+          }
+
+          // Inicialize column
+          if (leftSums[j][i] === undefined) {
+            leftSums[j][i] = 0
+          }
+          leftSums[j][i] += Math.pow(point[0], i + j)
+        }
+
+        // Right side
+        if (rightSums[j] === undefined) {
+          rightSums[j] = 0
+        }
+        rightSums[j] += point[1] * Math.pow(point[0], j)
+      }
+    });
+
+    return linear.solve(leftSums, rightSums);
   }
 
 }

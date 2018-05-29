@@ -10,7 +10,7 @@ module.exports = {
     align: "center"
   },
   equationText: {
-    fill: "#999999",
+    fill: "#fff",
     fontSize: 13,
     align: "center"
   },
@@ -111,7 +111,7 @@ module.exports = {
     }
   },
   interpolationCursor: {
-    radius: 5,
+    radius: 4,
     fill: "white"
   },
   convolutionKernelChart: {

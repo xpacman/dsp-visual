@@ -2,20 +2,28 @@ import React from "react";
 import {
   DropdownItem,
   DropdownMenu, DropdownToggle, FormGroup, Input, Label, Nav, Navbar, NavItem, NavLink,
-  UncontrolledDropdown
+  UncontrolledDropdown, Table
 } from "reactstrap";
 import styles from "./regression.scss";
-import {Rect} from "react-konva";
+import {Rect, Group, Text, Stage, Layer} from "react-konva";
+import Konva from "konva";
 import {max, min} from "d3-array";
 import {Chart} from "../../components";
 import Signal from "../../partials/Signal";
 import RegressionEngine from "../../utils/RegressionEngine";
-import InterpolationEngine from "../../utils/InterpolationEngine";
 import {findIndexOfNearest} from "../../utils/ArrayUtils";
 import config from "../../config";
 
+const initialAppState = {
+  selectedApproximation: null,
+  approxLevel: 1,
+  displayLeastSquares: true,
+  editingInputRowIndex: null
+};
+
 
 export default class Regression extends React.Component {
+
   constructor(props) {
     super(props);
     this.state = {
@@ -23,8 +31,7 @@ export default class Regression extends React.Component {
         inputValues: false,
         approximation: false
       },
-      selectedApproximation: 'line',
-      displayLeastSquares: true
+      ...initialAppState
     };
 
     // Time and value domain for signal
@@ -32,18 +39,36 @@ export default class Regression extends React.Component {
     this.yDomain = [0, 10];
 
     // Signal
-    this.inputSignal = new Signal([[0, 1], [2, 3], [5, 4], [6, 5], [8, 9], [9, 3]]);
+    this.inputValues = new Signal([[0, 1], [2, 3], [5, 4], [6, 5], [8, 9], [9, 3]]);
+    // Points to calculate approximation for -> each 0.01 x to make results smooth
+    this.pointsToApproximate = new Signal();
+    this.pointsToApproximate.generateValues(this.timeDomain[0], this.timeDomain[1], 0.01);
+    this.approximationValues = []; // Approximation result points
+    this.equation = null; // Approx. poly
+    this.crosshairTime = 0; // Time user is pointing to
+    this.approximationResult = 0; // Current approximation result
+    this.leastSquares = [];
 
     // Refs
     this.wrappers = {}; // Object of wrappers (element refs) for charts
     this.dims = {}; // Object of dimensions for charts
     this.chart = null; // Chart ref
+    this.equationsCanvas = {}; // Equations canvas ref
+    this.equationText = null; // Equation text ref
+    this.equationLabel = null; // Equation label ref
+    this.equationResult = null; // Equation result text ref
+    this.approximationCursor = null; // Circle which highlights current interpolated point
+    this.leastSquaresRef = null; // Reference to least squares konva group
+    this.leastSquaresSumText = null;
+    this.editableInputRowX = null;
+    this.editableInputRowY = null;
   }
 
   componentDidMount() {
     setTimeout(() => {
       // Delayed mount of konva components
       this.rescaleDimensions();
+      this.setApproximationEquations(this.state.selectedApproximation);
       // Listen for window resizes
       window.addEventListener("resize", () => this.rescaleDimensions());
     }, 1200);
@@ -79,18 +104,17 @@ export default class Regression extends React.Component {
     return [undefined, undefined];
   }
 
-  selectApproximation(approximation) {
-    this.setState({selectedApproximation: approximation})
-  }
-
   /**
    * Resets application to the initial state.
    */
   resetApplication(state = {}) {
-    this.setState({...this.state, ...state});
-    this.inputSignal.values([]);
-    this.chart.datasetPoints("inputSignal", []);
+    this.setState({...this.state, ...initialAppState, ...state});
+    this.inputValues.values([]);
+    this.approximationValues = [];
+    this.equation = null;
+    this.chart.datasetPoints("inputValues", []);
     this.chart.datasetPoints("approximation", []);
+    this.setApproximationEquations(null, 1);
   }
 
   getLeastSquares(inputValues, approximationValues) {
@@ -115,6 +139,89 @@ export default class Regression extends React.Component {
     return squares
   }
 
+  renderLeastSquares(squares, visible = true) {
+    if (this.chart !== null && this.leastSquaresRef !== null) {
+      // Remove old squares
+      this.leastSquaresRef.destroyChildren();
+
+      // Render new ones
+      squares.forEach((square, i) => {
+        return (
+          this.leastSquaresRef.add(
+            new Konva.Rect({
+              x: this.chart.xScale(square.x),
+              y: this.chart.yScale(square.y),
+              width: this.chart.yScale(square.y) - this.chart.yScale(square.approxVal),
+              height: -(this.chart.yScale(square.y) - this.chart.yScale(square.approxVal)),
+              stroke: "red",
+              visible: visible
+            })
+          ));
+      });
+      this.chart.refreshLayer("points");
+    }
+  }
+
+  getEditableInputRow(key, point) {
+    return (
+      <tr key={key}>
+        <th scope="row">{key}</th>
+        <td><Input innerRef={(input => {
+          // Get ref
+          this.editableInputRowX = input;
+          // Set initial value
+          if (input !== null) {
+            this.editableInputRowX.value = point[0];
+          }
+        })}
+                   onChange={(event) => this.editableInputRowX.value = event.target.value}
+                   type="number"/>
+        </td>
+        <td><Input innerRef={(input => {
+          this.editableInputRowY = input;
+          if (input !== null) {
+            this.editableInputRowY.value = point[1];
+          }
+        })} type="number"/></td>
+        <td>
+          <span className={`${styles.inputValuesRowActions} visible`} onClick={() => {
+            const x = parseFloat(this.editableInputRowX.value),
+              y = parseFloat(this.editableInputRowY.value);
+
+            if (!isNaN(x) && !isNaN(y)) {
+              this.inputValues.removePoint(point[0]);
+              // Update input values
+              this.inputValues.setPoint(x, y);
+              // Turn of editing
+              this.setState({editingInputRowIndex: null})
+            }
+          }}>&#x2714;&nbsp;
+          </span>
+          <span className={`${styles.inputValuesRowActions} visible`} onClick={() => {
+            this.setState({editingInputRowIndex: null})
+          }}>&#x2718;
+          </span>
+        </td>
+      </tr>)
+  }
+
+  getPolynomialApproximationMenuItems() {
+    const items = [];
+    // We support max 7th level poly approx.
+    for (let i = 0; i < 7; i++) {
+      items.push({
+        label: `Polynom ${i + 1} stupně`,
+        onClick: this.selectApproximation.bind(this, "poly", i + 1)
+      })
+    }
+    return items;
+  }
+
+  selectApproximation(approx, level, state = {}) {
+    this.setApproximationEquations(approx, level);
+    this.setState({selectedApproximation: approx, approxLevel: level, ...state});
+  }
+
   /**
    * Handles click on drawable charts
    * @param signalName string name of the this variable containing signal which is being drawed
@@ -136,53 +243,42 @@ export default class Regression extends React.Component {
     this.forceUpdate();
   }
 
-  render() {
-    const {dropdowns, selectedApproximation, displayLeastSquares} = this.state;
-    let approxLabel = "",
-      equation = "",
-      leastSquares = [],
-      leastSquaresSum = 0,
-      approx = [],
-      approxSignal = new Signal();
+  /**
+   * Will set approximations equations to display
+   * @param chosenApprox
+   * @param level
+   */
+  setApproximationEquations(chosenApprox, level) {
 
-    switch (selectedApproximation) {
-      // TODO: REMOVE THIS FUCKING SHIT
-      case 'line':
-        approxLabel = "Přímka";
-        equation = RegressionEngine.getLineEquation(this.inputSignal.values());
-        approxSignal.values(RegressionEngine.getLineApproximation(this.inputSignal.values()));
-        leastSquares = this.getLeastSquares(this.inputSignal.values(), approxSignal.values());
-        leastSquaresSum = RegressionEngine.getLineLeastSquares(this.inputSignal.values());
-        break;
-      case 'parabola':
-        approxLabel = "Parabola";
-        equation = RegressionEngine.getParabolaEquation(this.inputSignal.values());
-        approx = RegressionEngine.getParabolaApproximation(this.inputSignal.values());
-        if (approx.length >= 2) {
-          // To make parabola smooth, use newton interpolation
-          approxSignal.generateValues(approx[0][0], approx[approx.length - 1][0], 0.1);
-          approx = InterpolationEngine.newtonInterpolation(approx, InterpolationEngine.splitPoints(approxSignal.values())[0]);
-        }
-        approxSignal.values(approx);
-        leastSquares = this.getLeastSquares(this.inputSignal.values(), approxSignal.values());
-        leastSquaresSum = RegressionEngine.getParabolaLeastSquares(this.inputSignal.values());
-        break;
-      case 'exponential':
-        approxLabel = "Exponenciála";
-        equation = RegressionEngine.getExponentialEquation(this.inputSignal.values());
-        approx = RegressionEngine.getExponentialApproximation(this.inputSignal.values());
-        if (approx.length >= 2) {
-          // To make parabola smooth, use newton interpolation
-          approxSignal.generateValues(approx[0][0], approx[approx.length - 1][0], 0.1);
-          approx = InterpolationEngine.newtonInterpolation(approx, InterpolationEngine.splitPoints(approxSignal.values())[0]);
-        }
-        approxSignal.values(approx);
-        leastSquares = this.getLeastSquares(this.inputSignal.values(), approxSignal.values());
-        leastSquares.forEach(square => leastSquaresSum += Math.pow(square.size, 2));
+    switch (chosenApprox) {
+      case "poly":
+        if (this.inputValues.values().length < 2)
+          break;
+        this.approximationValues = RegressionEngine.polynomialApproximation(this.inputValues.values(), level, this.pointsToApproximate.values());
+        this.equation = RegressionEngine.getApproximationPolynomial(this.inputValues.values(), level);
+        this.equationLabel && this.equationLabel.setAttr("text", `Aproximace polynomem ${level} stupně`);
+        this.equationResult && this.equationResult.setAttr("text", `y(${this.crosshairTime}) = ${this.equation.solve(this.crosshairTime).toFixed(3)}`);
+        this.equationText && this.equationText.setAttr("text", `y = ${this.equation.toString(true)}`);
+        this.leastSquares = this.getLeastSquares(this.inputValues.values(), this.approximationValues);
+        this.leastSquaresSumText && this.leastSquaresSumText.setAttr("text",
+          `Součet chyb aproximace ${RegressionEngine.getPolyLeastSquaresEquationString(this.inputValues.values(), level)} = ${RegressionEngine.getPolyLeastSquaresSum(this.inputValues.values(), level).toFixed(3)}`);
         break;
       default:
+        this.equationLabel && this.equationLabel.setAttr("text", "Zvolte aproximaci");
+        this.equationResult && this.equationResult.setAttr("text", "");
+        this.equationText && this.equationText.setAttr("text", "");
+        this.leastSquaresSumText && this.leastSquaresSumText.setAttr("text", "");
+        this.leastSquares = [];
         break;
     }
+
+    this.chart && this.chart.refreshLayer("points");
+    this.equationsCanvas.layer && this.equationsCanvas.layer.batchDraw();
+  }
+
+  render() {
+    const {dropdowns, selectedApproximation, displayLeastSquares, approxLevel, editingInputRowIndex} = this.state;
+    this.renderLeastSquares(this.leastSquares, displayLeastSquares);
 
     return (
       <div className={styles.container}>
@@ -201,18 +297,14 @@ export default class Regression extends React.Component {
                                   isOpen={dropdowns.approximation}
                                   toggle={this.toggleDropdown.bind(this, "approximation")}>
               <DropdownToggle nav caret>
-                Aproximace {`${approxLabel}`}
+                Aproximace
               </DropdownToggle>
-              <DropdownMenu >
-                <DropdownItem onClick={this.selectApproximation.bind(this, "line")}>
-                  Přímka
-                </DropdownItem>
-                <DropdownItem onClick={this.selectApproximation.bind(this, "parabola")}>
-                  Parabola
-                </DropdownItem>
-                <DropdownItem onClick={this.selectApproximation.bind(this, "exponential")}>
-                  Exponenciála
-                </DropdownItem>
+              <DropdownMenu>
+                {this.getPolynomialApproximationMenuItems().map((item, i) => (
+                  <DropdownItem key={i} onClick={item.onClick}>
+                    {item.label}
+                  </DropdownItem>
+                ))}
               </DropdownMenu>
             </UncontrolledDropdown>
 
@@ -226,30 +318,29 @@ export default class Regression extends React.Component {
               </Label>
             </FormGroup>
 
-            <NavItem className="d-inline-flex align-items-center px-3">
-              {equation}
-            </NavItem>
-
-            <NavItem className="d-inline-flex align-items-center px-3">
-              p<sup>2</sup> = {leastSquaresSum ? leastSquaresSum.toFixed(3) : 0}
-            </NavItem>
           </Nav>
         </Navbar>
 
-        <div className={`row h-100 ${styles.chartRow}`}>
+        <div className={`row ${styles.h90} ${styles.chartRow}`}>
           <div id="regression-chart-wrapper" ref={(elem) => this.wrappers.chart = elem}
-               className={`col-12 ${styles.chartWrapper}`}>
+               className={`col-10 ${styles.chartWrapper}`}>
             {this.wrappers.chart && <Chart ref={(chart) => this.chart = chart}
                                            wrapper={this.wrappers.chart}
                                            width={this.dims.chart ? this.dims.chart[0] : 0}
                                            height={this.dims.chart ? this.dims.chart[1] : 0}
                                            xAxisLabel={"x"}
-                                           yAxisLabel={"y"}
                                            xDomain={this.timeDomain}
                                            yDomain={this.yDomain}
+                                           labels={{
+                                             x: 20,
+                                             y: 0,
+                                             width: 50,
+                                             height: 20,
+                                             content: <Text text={`y(t) ↑`} {...config.chartLabelText} />
+                                           }}
                                            datasets={{
-                                             inputSignal: {
-                                               data: this.inputSignal.values(),
+                                             inputValues: {
+                                               data: this.inputValues.values(),
                                                config: {
                                                  cross: config.pointCross,
                                                  dot: config.pointCircle
@@ -257,32 +348,85 @@ export default class Regression extends React.Component {
                                                element: "cross"
                                              },
                                              approximation: {
-                                               data: approxSignal.values(),
+                                               data: this.approximationValues,
                                                config: {
                                                  ...config.regressionChart.line,
                                                },
                                                element: "line"
                                              }
                                            }}
-                                           onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputSignal")}
+                                           onContentMousemove={(chart => {
+                                             this.crosshairTime = chart.xCrosshairPosition();
+                                             if (!chart.isDragging) {
+                                               this.setApproximationEquations(selectedApproximation, approxLevel)
+                                             }
+                                           })}
+                                           onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputValues")}
                                            onContentMousedown={(chart) => {
-                                             this.onDrawableChartClick("inputSignal", chart);
+                                             this.onDrawableChartClick("inputValues", chart);
                                            }}>
-              {(chart) =>
-              displayLeastSquares && leastSquares.map((square, i) => {
-                return (
-                  <Rect key={i}
-                        x={chart.xScale(square.x)}
-                        y={chart.yScale(square.y)}
-                        width={chart.yScale(square.y) - chart.yScale(square.approxVal)}
-                        height={-(chart.yScale(square.y) - chart.yScale(square.approxVal))}
-                        stroke="red"
-                        fill="rgba(255, 50, 50, 0.6)"
-                  />);
-              })
-              }
+              <Group ref={(grp => this.leastSquaresRef = grp)}/>
             </Chart>
             }
+          </div>
+
+          <div className={`col-2 ${styles.chartWrapper}`}>
+            <Table className={`${styles.inputValuesTable}`} striped>
+              <thead>
+              <tr>
+                <th colSpan={4}>Vstupní hodnoty</th>
+              </tr>
+              <tr>
+                <th>n</th>
+                <th className="w-50 ">xₙ</th>
+                <th className="w-50 ">yₙ(x)</th>
+                <th>&#x270e;&nbsp;&#x2718;</th>
+              </tr>
+              </thead>
+              <tbody>
+              {this.inputValues.values().map((point, i) => {
+                if (i === editingInputRowIndex) {
+                  return this.getEditableInputRow(i, point)
+                } else {
+                  return (
+                    <tr key={i} className={`${styles.inputValuesRow}`}>
+                      <th scope="row">{i}</th>
+                      <td className="w-50 ">{point[0]}</td>
+                      <td className="w-50 ">{point[1]}</td>
+                      <td>
+                        <span className={`${styles.inputValuesRowActions}`} onClick={() => {
+                          this.setState({editingInputRowIndex: i})
+                        }}>&#x270e;&nbsp;</span>
+                        <span className={`${styles.inputValuesRowActions}`} onClick={() => {
+                          this.inputValues.removePoint(point[0]);
+                          this.forceUpdate();
+                        }}>&#x2718;</span>
+                      </td>
+                    </tr>
+                  );
+                }
+              })}
+              <tr className={`${styles.inputValuesRow} ${styles.inputValuesRowActions} visible`}>
+                <td colSpan={4} className="text-center">Přidat bod +</td>
+              </tr>
+              </tbody>
+            </Table>
+          </div>
+        </div>
+
+        <div className={`row ${styles.chartRow} ${styles.h10}`}>
+          <div id="interpolation-equations-canvas-wrapper" ref={(elem) => this.wrappers.equationsCanvas = elem}
+               className={`col-12 ${styles.chartWrapper}`}>
+            <Stage ref={(stage => this.equationsCanvas.stage = stage)}
+                   width={this.dims.equationsCanvas ? this.dims.equationsCanvas[0] : 0}
+                   height={this.dims.equationsCanvas ? this.dims.equationsCanvas[1] : 0}>
+              <Layer ref={(layer => this.equationsCanvas.layer = layer)}>
+                <Text x={20} y={10} ref={(text => this.equationLabel = text)} {...config.equationText}/>
+                <Text x={20} y={30} ref={(text => this.equationResult = text)} {...config.equationText}/>
+                <Text x={20} y={50} ref={(text => this.equationText = text)} {...config.equationText}/>
+                <Text x={20} y={70} ref={(text => this.leastSquaresSumText = text)} {...config.equationText}/>
+              </Layer>
+            </Stage>
           </div>
         </div>
       </div>
