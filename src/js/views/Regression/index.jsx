@@ -7,7 +7,7 @@ import {
 import styles from "./regression.scss";
 import {Rect, Group, Text, Stage, Layer} from "react-konva";
 import Konva from "konva";
-import {max, min} from "d3-array";
+import {max, min, extent} from "d3-array";
 import {Chart} from "../../components";
 import Signal from "../../partials/Signal";
 import RegressionEngine from "../../utils/RegressionEngine";
@@ -104,6 +104,22 @@ export default class Regression extends React.Component {
     return [undefined, undefined];
   }
 
+  rescaleChart() {
+    const offset = 2;
+    this.timeDomain = extent(this.inputValues.values().map(point => Number(point[0])));
+    this.timeDomain[0] = Math.floor(this.timeDomain[0]) - offset;
+    this.timeDomain[1] = Math.floor(this.timeDomain[1]) + offset;
+    this.yDomain = extent(this.inputValues.values().map(point => Number(point[1])));
+    this.yDomain[0] = Math.floor(this.yDomain[0]) - offset;
+    this.yDomain[1] = Math.floor(this.yDomain[1]) + offset;
+    this.chart && this.chart.rescale({
+      yDomain: this.yDomain,
+      xDomain: this.timeDomain
+    });
+    this.pointsToApproximate.generateValues(this.timeDomain[0], this.timeDomain[1], 0.01);
+    this.forceUpdate();
+  }
+
   /**
    * Resets application to the initial state.
    */
@@ -162,7 +178,7 @@ export default class Regression extends React.Component {
     }
   }
 
-  getEditableInputRow(key, point) {
+  getEditableInputRow(key, point = null) {
     return (
       <tr key={key}>
         <th scope="row">{key}</th>
@@ -170,7 +186,7 @@ export default class Regression extends React.Component {
           // Get ref
           this.editableInputRowX = input;
           // Set initial value
-          if (input !== null) {
+          if (input !== null && point !== null) {
             this.editableInputRowX.value = point[0];
           }
         })}
@@ -179,7 +195,7 @@ export default class Regression extends React.Component {
         </td>
         <td><Input innerRef={(input => {
           this.editableInputRowY = input;
-          if (input !== null) {
+          if (input !== null && point !== null) {
             this.editableInputRowY.value = point[1];
           }
         })} type="number"/></td>
@@ -189,11 +205,13 @@ export default class Regression extends React.Component {
               y = parseFloat(this.editableInputRowY.value);
 
             if (!isNaN(x) && !isNaN(y)) {
-              this.inputValues.removePoint(point[0]);
+              point !== null && this.inputValues.removePoint(point[0]);
               // Update input values
               this.inputValues.setPoint(x, y);
               // Turn of editing
-              this.setState({editingInputRowIndex: null})
+              this.setState({editingInputRowIndex: null});
+              // Rescale chart
+              this.rescaleChart();
             }
           }}>&#x2714;&nbsp;
           </span>
@@ -218,7 +236,6 @@ export default class Regression extends React.Component {
   }
 
   selectApproximation(approx, level, state = {}) {
-    this.setApproximationEquations(approx, level);
     this.setState({selectedApproximation: approx, approxLevel: level, ...state});
   }
 
@@ -278,6 +295,7 @@ export default class Regression extends React.Component {
 
   render() {
     const {dropdowns, selectedApproximation, displayLeastSquares, approxLevel, editingInputRowIndex} = this.state;
+    this.setApproximationEquations(selectedApproximation, approxLevel);
     this.renderLeastSquares(this.leastSquares, displayLeastSquares);
 
     return (
@@ -308,6 +326,13 @@ export default class Regression extends React.Component {
               </DropdownMenu>
             </UncontrolledDropdown>
 
+            <NavItem className="d-inline-flex align-items-center px-3">
+              <NavLink href="#" className="nav-link pr-3" onClick={() => {
+                this.inputValues.generateValues(this.timeDomain[0], this.timeDomain[1], 1, (x) => this.inputValues.parseValue(Math.random() * (this.yDomain[1] - this.yDomain[0]) + this.yDomain[0], 3));
+                this.forceUpdate();
+              }}>Generuj hodnoty</NavLink>
+            </NavItem>
+
             <FormGroup check
                        className="d-inline-flex align-items-center px-3">
               <Label check>
@@ -329,15 +354,9 @@ export default class Regression extends React.Component {
                                            width={this.dims.chart ? this.dims.chart[0] : 0}
                                            height={this.dims.chart ? this.dims.chart[1] : 0}
                                            xAxisLabel={"x"}
+                                           yAxisLabel={"y(t)"}
                                            xDomain={this.timeDomain}
                                            yDomain={this.yDomain}
-                                           labels={{
-                                             x: 20,
-                                             y: 0,
-                                             width: 50,
-                                             height: 20,
-                                             content: <Text text={`y(t) ↑`} {...config.chartLabelText} />
-                                           }}
                                            datasets={{
                                              inputValues: {
                                                data: this.inputValues.values(),
@@ -370,7 +389,7 @@ export default class Regression extends React.Component {
             }
           </div>
 
-          <div className={`col-2 ${styles.chartWrapper}`}>
+          <div className={`col-2 ${styles.chartWrapper} ${styles.inputValuesPanel}`}>
             <Table className={`${styles.inputValuesTable}`} striped>
               <thead>
               <tr>
@@ -399,16 +418,23 @@ export default class Regression extends React.Component {
                         }}>&#x270e;&nbsp;</span>
                         <span className={`${styles.inputValuesRowActions}`} onClick={() => {
                           this.inputValues.removePoint(point[0]);
-                          this.forceUpdate();
+                          // Rescale chart
+                          this.rescaleChart();
                         }}>&#x2718;</span>
                       </td>
                     </tr>
                   );
                 }
               })}
-              <tr className={`${styles.inputValuesRow} ${styles.inputValuesRowActions} visible`}>
-                <td colSpan={4} className="text-center">Přidat bod +</td>
-              </tr>
+              {editingInputRowIndex === this.inputValues.values().length ?
+                this.getEditableInputRow(this.inputValues.values().length) :
+                <tr className={`${styles.inputValuesRow} ${styles.inputValuesRowActions} visible`}>
+                  <td colSpan={4} className="text-center"
+                      onClick={() => this.setState({editingInputRowIndex: this.inputValues.values().length})}>
+                    Přidat bod +
+                  </td>
+                </tr>
+              }
               </tbody>
             </Table>
           </div>

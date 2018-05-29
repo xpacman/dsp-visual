@@ -63,3 +63,8 @@
     color: $link-hover-color;
   }
 }
+
+.inputValuesPanel {
+  overflow-y: auto;
+  overflow-x: hidden;
+}

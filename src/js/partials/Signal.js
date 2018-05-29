@@ -184,7 +184,7 @@ export default class Signal {
    */
   setPoint(x, y) {
     x = this.parseValue(x);
-    y = this.parseValue(y);
+    y = this.parseValue(y, 4);
 
     const point = this.getPoint(x);
     // If were able to get the point

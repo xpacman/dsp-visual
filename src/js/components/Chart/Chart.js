@@ -564,7 +564,7 @@ export default class Chart extends React.Component {
             xAxisLabel && <Text text={`${xAxisLabel} →`} x={this.trimDims[0] - margins[1] / 2}
                                 offsetX={axisLabelOffsets.x[0]}
                                 offsetY={axisLabelOffsets.x[1]}
-                                y={this.trimDims[1] / 2 + 5} {...config.axisLabel}/>
+                                y={this.yScale(0) + 5} {...config.axisLabel}/>
           }
           <Line
             points={[0, this.trimDims[1], this.trimDims[0], this.trimDims[1]]}
@@ -585,8 +585,8 @@ export default class Chart extends React.Component {
             })
           }
           {
-            yAxisLabel && <Text text={`${yAxisLabel} ↑`} x={this.trimDims[0] / 2 - margins[3] - 5}
-                                offsetX={this.xScale(0) + axisLabelOffsets.y[0]}
+            yAxisLabel && <Text text={`${yAxisLabel} ↑`} x={this.xScale(0) + 5}
+                                offsetX={axisLabelOffsets.y[0]}
                                 offsetY={axisLabelOffsets.y[1]}
                                 y={margins[0] / 2} {...config.axisLabel}/>
           }

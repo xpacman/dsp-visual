@@ -55,6 +55,7 @@ export default class Interpolation extends React.Component {
     this.equationText = null; // Equation text ref
     this.equationLabel = null; // Equation label ref
     this.reconstructionFunctionText = null; // Recon. f(t) text ref
+    this.legendText = null; // Bottom most text ref
     this.interpolationCursor = null; // Circle which highlights current interpolated point
   }
 
@@ -185,23 +186,27 @@ export default class Interpolation extends React.Component {
         this.equationLabel && this.equationLabel.setAttr("text", "Newtonův interpolační polynom");
         this.equationText && this.equationText.setAttr("text", `Rekonstruovaný xᵣ(${this.crosshairTime}) = Pₙ(${this.crosshairTime} = ${interpolation.toFixed(3)}`);
         this.reconstructionFunctionText && this.reconstructionFunctionText.setAttr("text", `Pₙ(t) = ${InterpolationEngine.getNewtonPolyEquation(this.originalSampled.values())}`);
+        this.legendText && this.legendText.setAttr("text", "");
         break;
       case "zeroOrderHold":
         interpolation = InterpolationEngine.zeroOrderHoldInterpolation(this.originalSampled.values(), samplingPeriod.toFixed(3), this.crosshairTime);
         this.equationLabel && this.equationLabel.setAttr("text", "Schodová interpolace (Zero order hold)");
         this.equationText && this.equationText.setAttr("text", `Rekonstruovaný xᵣ(${this.crosshairTime}) = xₛ(t) ∗ h(t) = ∑ xₛ[n] h(${this.crosshairTime} - n * ${samplingPeriod.toFixed(3)}) = ${interpolation.toFixed(3)}`);
         this.reconstructionFunctionText && this.reconstructionFunctionText.setAttr("text", "Rekonstrukční funkce h(t) = 1 pro 0 <= t <= T, 0 jinak");
+        this.legendText && this.legendText.setAttr("text", `xₛ => Vzorkovaný signál, T = ${samplingPeriod.toFixed(3)}ms`);
         break;
       case "firstOrderHold":
         interpolation = InterpolationEngine.firstOrderHoldInterpolation(this.originalSampled.values(), samplingPeriod.toFixed(3), this.crosshairTime);
         this.equationLabel && this.equationLabel.setAttr("text", "Lineární interpolace (First order hold)");
         this.equationText && this.equationText.setAttr("text", `Rekonstruovaný xᵣ(${this.crosshairTime}) = xₛ(t) ∗ h(t) = ∑ xₛ[n] h(${this.crosshairTime} - n * ${samplingPeriod.toFixed(3)}) = ${interpolation.toFixed(3)}`);
         this.reconstructionFunctionText && this.reconstructionFunctionText.setAttr("text", "Rekonstrukční funkce h(t) = 1 - (|t| / T) pro 0 <= |t| <= T, 0 jinak");
+        this.legendText && this.legendText.setAttr("text", `xₛ => Vzorkovaný signál, T = ${samplingPeriod.toFixed(3)}ms`);
         break;
       default:
         this.reconstructionFunctionText && this.reconstructionFunctionText.setAttr("text", "");
         this.equationLabel && this.equationLabel.setAttr("text", "Zvolte interpolaci");
         this.equationText && this.equationText.setAttr("text", "");
+        this.legendText && this.legendText.setAttr("text", "");
         break;
     }
 
@@ -355,16 +360,6 @@ export default class Interpolation extends React.Component {
                       style={{background: config.interpolationFOHSignal.line.stroke}}/></NavLink>
             </NavItem>
 
-            <NavItem className="d-inline-flex align-items-center px-3">
-              <NavLink href="#" className="nav-link pr-3"
-                       onClick={this.resetApplication.bind(this, {
-                         display: {newton: true},
-                         chosenInterpolation: "newton"
-                       })}>Newtonova interpolace&nbsp;
-                <span className={styles.legendSquare}
-                      style={{background: config.interpolationFOHSignal.line.stroke}}/></NavLink>
-            </NavItem>
-
           </Nav>
         </Navbar>
 
@@ -463,6 +458,7 @@ export default class Interpolation extends React.Component {
                 <Text x={20} y={10} ref={(text => this.equationLabel = text)} {...config.equationText}/>
                 <Text x={20} y={30} ref={(text => this.equationText = text)} {...config.equationText}/>
                 <Text x={20} y={50} ref={(text => this.reconstructionFunctionText = text)} {...config.equationText}/>
+                <Text x={20} y={70} ref={(text => this.legendText = text)} {...config.equationText}/>
               </Layer>
             </Stage>
           </div>

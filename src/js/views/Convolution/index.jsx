@@ -378,6 +378,7 @@ export default class Convolution extends React.Component {
                                                 width={this.dims.inputChart ? this.dims.inputChart[0] : 0}
                                                 height={this.dims.inputChart ? this.dims.inputChart[1] : 0}
                                                 xAxisLabel={"n"}
+                                                yAxisLabel={"h[n]"}
                                                 labels={{
                                                   x: 20,
                                                   y: 0,
@@ -416,6 +417,7 @@ export default class Convolution extends React.Component {
                                                  width={this.dims.kernelChart ? this.dims.kernelChart[0] : 0}
                                                  height={this.dims.kernelChart ? this.dims.kernelChart[1] : 0}
                                                  xAxisLabel={"n"}
+                                                 yAxisLabel={"x[n]"}
                                                  labels={{
                                                    x: 20,
                                                    y: 0,
@@ -490,11 +492,11 @@ export default class Convolution extends React.Component {
                                                  width={this.dims.outputChart ? this.dims.outputChart[0] : 0}
                                                  height={this.dims.outputChart ? this.dims.outputChart[1] : 0}
                                                  xAxisLabel={"n"}
+                                                 yAxisLabel={"y[n]"}
                                                  axisLabelOffsets={{
                                                    x: [20, 0],
                                                    y: [0, 0]
                                                  }}
-                                                 yAxisLabel={"y[n]"}
                                                  xTicksCount={21}
                                                  labels={{
                                                    x: 20,
@@ -528,6 +530,7 @@ export default class Convolution extends React.Component {
                                                     width={this.dims.draggableChart ? this.dims.draggableChart[0] : 0}
                                                     height={this.dims.draggableChart ? this.dims.draggableChart[1] : 0}
                                                     xAxisLabel={"n"}
+                                                    yAxisLabel={"y[n]"}
                                                     axisLabelOffsets={{x: [20, 0], y: [0, 0]}}
                                                     xTicksCount={20}
                                                     labels={{
@@ -562,7 +565,7 @@ export default class Convolution extends React.Component {
             }
           </div>
         </div>
-        <div className={`row ${styles.chartRow}`} style={{height: 100}}>
+        <div className={`row ${styles.chartRow}`} style={{height: 150}}>
           <div className={`col-12 ${styles.chartWrapper}`}>
             {this.wrappers.draggableChart &&
             <Scroller
@@ -570,7 +573,7 @@ export default class Convolution extends React.Component {
               onScroll={this.moveScroller.bind(this)}
               precision={3}
               width={this.dims.draggableChart ? this.dims.draggableChart[0] : 0}
-              height={100}/>}
+              height={150}/>}
           </div>
         </div>
       </div>
