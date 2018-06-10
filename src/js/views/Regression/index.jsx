@@ -346,7 +346,7 @@ export default class Regression extends React.Component {
           </Nav>
         </Navbar>
 
-        <div className={`row ${styles.h90} ${styles.chartRow}`}>
+        <div className={`row ${styles.h80} ${styles.chartRow}`}>
           <div id="regression-chart-wrapper" ref={(elem) => this.wrappers.chart = elem}
                className={`col-10 ${styles.chartWrapper}`}>
             {this.wrappers.chart && <Chart ref={(chart) => this.chart = chart}
@@ -389,7 +389,7 @@ export default class Regression extends React.Component {
             }
           </div>
 
-          <div className={`col-2 ${styles.chartWrapper} ${styles.inputValuesPanel}`}>
+          <div className={`col-2 ${styles.chartWrapper} ${styles.inputValuesPanel} h-100`}>
             <Table className={`${styles.inputValuesTable}`} striped>
               <thead>
               <tr>
@@ -440,7 +440,7 @@ export default class Regression extends React.Component {
           </div>
         </div>
 
-        <div className={`row ${styles.chartRow} ${styles.h10}`}>
+        <div className={`row ${styles.chartRow} ${styles.equationRow}`}>
           <div id="interpolation-equations-canvas-wrapper" ref={(elem) => this.wrappers.equationsCanvas = elem}
                className={`col-12 ${styles.chartWrapper}`}>
             <Stage ref={(stage => this.equationsCanvas.stage = stage)}

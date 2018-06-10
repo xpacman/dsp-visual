@@ -8,6 +8,7 @@ import styles from "./correlation.scss";
 const Decimal = require('decimal.js-light');
 import {Rect, Text} from "react-konva";
 import ConvolutionEngine from "../../utils/ConvolutionEngine";
+import CorrelationEngine from "../../utils/CorrelationEngine";
 import * as Presets from "../../partials/SignalPresets";
 import {Chart, Scroller} from "../../components";
 import {max, min, extent} from "d3-array";
@@ -117,13 +118,13 @@ export default class Correlation extends React.Component {
   setInputSignal(signal) {
     this.inputSignal = signal;
     this.resetApplication();
-    this.computeConvolution();
+    this.computeCorrelation();
   }
 
   setKernelSignal(signal) {
     this.kernelSignal = signal;
     this.resetApplication();
-    this.computeConvolution();
+    this.computeCorrelation();
   }
 
   /**
@@ -152,9 +153,6 @@ export default class Correlation extends React.Component {
    * @param chart Chart class instance we are drawing in
    */
   onChartDraw(signalName, chart) {
-    /*
-     Beznákovic dívka, jo, tu mám rád. Při myšlence na ni, chce se mi začít smát...a taky řvát, že po tom všem, znovu ji musím psát,
-     */
     const pointerPos = chart.pointerPosition,
       placeToSet = findIndexOfNearest(this[signalName].values(), (point => point[0]), chart.getCordXValue(pointerPos.x, 3)),
       newPoint = this[signalName].setPoint(this[signalName].values()[placeToSet][0], chart.getCordYValue(pointerPos.y, 3));
@@ -193,15 +191,11 @@ export default class Correlation extends React.Component {
     chart.datasetPoints(signalName, this[signalName].values());
   }
 
-  computeConvolution() {
-    this.result = ConvolutionEngine.convolution(this.inputSignal.values(), this.kernelSignal.values());
-    // Convolution returns samples going from 0 time, we have to set time offset here
+  computeCorrelation() {
+    this.result = CorrelationEngine.crossCorrelation(this.inputSignal.values(), this.kernelSignal.values());
     const xMin = this.inputSignal.xDomain()[0],
       // Maximum y value of the convolution result
       resultMaxY = extent(this.result.map(point => point[1]));
-    this.result.map((sample, i) => {
-      sample[0] = (new Decimal(xMin + i * this.draggableStep)).toFixed(2);
-    });
     // Rescale output chart for new result values
     this.outputChartXDomain = [this.result[0][0], this.result[this.result.length - 1][0]];
     this.outputChartYDomain = (resultMaxY[0] !== resultMaxY[1]) ? resultMaxY : [-1, 1];
@@ -215,7 +209,7 @@ export default class Correlation extends React.Component {
    */
   onDrawableChartMouseUp(signalName, chart) {
     // Compute convolution on mouse up, save values as array
-    this.computeConvolution();
+    this.computeCorrelation();
     this.forceUpdate();
   }
 
@@ -232,7 +226,7 @@ export default class Correlation extends React.Component {
     // Update draggable chart
     this.draggableChart.datasetPoints("inputSignal", this.inputSignal.values(null, true));
     // Convolution result up to this scroller position progress
-    const convResult = this.result.slice(0, this.result.findIndex((point => point[0] === offsetX.plus(this.inputSignal.xDomain()[1]).toFixed(2))) + 1),
+    const convResult = this.result.slice(0, this.result.findIndex((point => Number(point[0]).toFixed(2) === offsetX.toFixed(2))) + 1),
       lastPoint = convResult.length > 0 ? convResult[convResult.length - 1][1] : 0;
     this.draggableChartOffsetLabel.setAttr("text", `Zpoždění = ${offsetX.toFixed(2)}`);
     this.draggableChart.refreshLayer("labels");
@@ -401,12 +395,12 @@ export default class Correlation extends React.Component {
                                                 }}
                                                 onContentMousedrag={(chart) => {
                                                   this.onChartDraw("inputSignal", chart);
-                                                  this.draggableChart.datasetPoints(`inputSignal`, this.inputSignal.values(null, true, true));
+                                                  this.draggableChart.datasetPoints(`inputSignal`, this.inputSignal.values(null, true));
                                                 }}
                                                 onContentMouseup={this.onDrawableChartMouseUp.bind(this, "inputSignal")}
                                                 onContentMousedown={(chart) => {
                                                   this.onDrawableChartClick("inputSignal", chart);
-                                                  this.draggableChart.datasetPoints(`inputSignal`, this.inputSignal.values(null, true, true));
+                                                  this.draggableChart.datasetPoints(`inputSignal`, this.inputSignal.values(null, true));
                                                 }}/>
             }
           </div>

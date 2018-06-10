@@ -363,7 +363,7 @@ export default class Interpolation extends React.Component {
           </Nav>
         </Navbar>
 
-        <div className={`row ${styles.chartRow} ${styles.h90}`}>
+        <div className={`row ${styles.chartRow} ${styles.h80}`}>
           <div id="interpolation-chart-wrapper" ref={(elem) => this.wrappers.chart = elem}
                className={`col-12 ${styles.chartWrapper}`}>
             {this.wrappers.chart && <Chart ref={(chart) => this.chart = chart}
@@ -448,7 +448,7 @@ export default class Interpolation extends React.Component {
           </div>
         </div>
 
-        <div className={`row ${styles.chartRow} ${styles.h10}`}>
+        <div className={`row ${styles.chartRow} ${styles.equationRow}`}>
           <div id="interpolation-equations-canvas-wrapper" ref={(elem) => this.wrappers.equationsCanvas = elem}
                className={`col-12 ${styles.chartWrapper}`}>
             <Stage ref={(stage => this.equationsCanvas.stage = stage)}

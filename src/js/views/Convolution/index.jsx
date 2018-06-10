@@ -7,6 +7,7 @@ import {
 import styles from "./convolution.scss";
 const Decimal = require('decimal.js-light');
 import {Rect, Text} from "react-konva";
+import CorrelationEngine from "../../utils/CorrelationEngine";
 import ConvolutionEngine from "../../utils/ConvolutionEngine";
 import * as Presets from "../../partials/SignalPresets";
 import {Chart, Scroller} from "../../components";
@@ -199,9 +200,6 @@ export default class Convolution extends React.Component {
     const xMin = this.inputSignal.xDomain()[0],
       // Maximum y value of the convolution result
       resultMaxY = extent(this.result.map(point => point[1]));
-    this.result.map((sample, i) => {
-      sample[0] = (new Decimal(xMin + i * this.draggableStep)).toFixed(2);
-    });
     // Rescale output chart for new result values
     this.outputChartXDomain = [this.result[0][0], this.result[this.result.length - 1][0]];
     this.outputChartYDomain = (resultMaxY[0] !== resultMaxY[1]) ? resultMaxY : [-1, 1];
@@ -232,7 +230,7 @@ export default class Convolution extends React.Component {
     // Update draggable chart
     this.draggableChart.datasetPoints("inputSignal", this.inputSignal.values(null, true, true));
     // Convolution result up to this scroller position progress
-    const convResult = this.result.slice(0, this.result.findIndex((point => point[0] === offsetX.plus(this.inputSignal.xDomain()[1]).toFixed(2))) + 1),
+    const convResult = this.result.slice(0, this.result.findIndex((point => Number(point[0]).toFixed(2) === offsetX.toFixed(2))) + 1),
       lastPoint = convResult.length > 0 ? convResult[convResult.length - 1][1] : 0;
     this.draggableChartOffsetLabel.setAttr("text", `Zpoždění = ${offsetX.toFixed(2)}`);
     this.draggableChart.refreshLayer("labels");

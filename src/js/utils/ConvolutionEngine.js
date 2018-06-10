@@ -11,18 +11,18 @@ export default class ConvolutionEngine {
    * @return {Array} of samples [[x0, y0],....]
    */
   static convolution(inputValues, kernelValues) {
-    const samplesCount = inputValues.length + kernelValues.length - 1,
-      outputValues = [];
+    const outputValues = [];
+    let elem = 0;
 
-    for (let i = 0; i < samplesCount; i++) {
-      outputValues[i] = [i, 0]; // set to zero before sum
+    for (let i = -kernelValues.length + 1; i < kernelValues.length; i++) {
+      elem = outputValues.push([i, 0]) - 1; // set to zero before sum
       for (let j = 0; j < kernelValues.length; j++) {
 
         // Skip convolution at the boundary
-        if (!inputValues[i - j]) {
+        if (!inputValues[elem - j]) {
           continue;
         }
-        outputValues[i][1] += inputValues[i - j][1] * kernelValues[j][1]; // convolve: multiply and accumulate
+        outputValues[elem][1] += inputValues[elem - j][1] * kernelValues[j][1]; // convolve: multiply and accumulate
       }
     }
 
@@ -40,7 +40,7 @@ export default class ConvolutionEngine {
     const ret = [];
     kernelValues.forEach((point, i) => {
       ret[i] = [point[0], 0];
-      for (let j = 0; j < timeReversedValues.length - 1; j++) {
+      for (let j = 0; j < timeReversedValues.length; j++) {
         if (timeReversedValues[j][0] === point[0]) {
           ret[i][1] = timeReversedValues[j][1] * point[1];
         }
