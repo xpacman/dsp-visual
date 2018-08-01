@@ -11,28 +11,25 @@
     "test": "clear && jest ./tests",
     "dev": "webpack-dashboard -t 'Webpack Dashboard' -- webpack-dev-server",
     "build": "npm run clean && webpack --config webpack.production.config.js --progress --profile --colors",
-    "execute": "npm run build && http-server ./build",
-    "deploy": "npm run build && cp now.json ./build && now ./build --public --static",
-    "alias": "cp now.json ./build && cd ./build && now alias",
-    "deploy-production": "npm run build && cp now.production.json ./build/now.json && now ./build --public --static",
-    "alias-production": "cp now.production.json ./build/now.json && cd ./build && now alias"
+    "execute": "npm run build && http-server ./build"
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com:thekeogh/webpack-react-redux.git"
+    "url": "git+ssh://git@github.com:xpacman/dsp-visual.git"
   },
   "keywords": [
     "react",
     "webpack3",
-    "boilerplate",
-    "redux",
-    "sass"
+    "signal",
+    "signal-processing",
+    "convolution",
+    "correlation",
+    "regression",
+    "interpolation",
+    "boilerplate"
   ],
-  "author": "Turing Technology s.r.o.",
-  "bugs": {
-    "url": "https://github.com/thekeogh/webpack-react-redux/issues"
-  },
-  "homepage": "https://github.com/thekeogh/webpack-react-redux/",
+  "author": "xpacman",
+  "homepage": "http://titandesign.eu",
   "devDependencies": {
     "autoprefixer": "^7.1.2",
     "babel-core": "^6.26.0",

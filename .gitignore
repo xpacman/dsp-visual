@@ -9,6 +9,4 @@ build
 np-debug.log
 logs
 *.log
-.env
-.env.production
 .idea
