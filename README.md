@@ -1,5 +1,7 @@
 # Visualized signal processing using ReactJs & Konva
 
+Based on [React](https://facebook.github.io/react/) & [Konva](https://github.com/konvajs/react-konva).
+
 - [x] Linear regression and least squares method
 - [x] Interpolation and signal reconstruction from samples
 - [x] Discrete convolution
